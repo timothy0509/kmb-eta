@@ -112,6 +112,4 @@ To deploy on GitHub Pages:
 
 *   Timothy
 
----
 
-This README provides a good overview of your project. Let me know if you'd like any part expanded or clarified!
