@@ -6,10 +6,8 @@ A web-based tool to fetch and display real-time Estimated Time of Arrival (ETA) 
 
 You can access the live versions here (assuming standard GitHub Pages deployment):
 
-*   **General ETA Search:** `https://[your-username].github.io/[repo-name]/index.html`
-*   **Pak Hung House ETA:** `https://[your-username].github.io/[repo-name]/singyin.html`
-
-*(Replace `[your-username]` and `[repo-name]` with your actual GitHub username and repository name.)*
+*   **General ETA Search:** `https://eta.hkjc.uk`
+*   **Pak Hung House ETA:** `https://eta.hkjc.uk/singyin`
 
 ## Features
 
