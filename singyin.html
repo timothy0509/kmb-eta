@@ -10,6 +10,13 @@
     <div class="container">
       <div class="header-controls">
         <h1>Pak Hung House - Bus ETA</h1>
+        <div class="theme-switch-wrapper">
+          <label class="theme-switch" for="countdownToggleSy">
+            <input type="checkbox" id="countdownToggleSy" />
+            <span class="slider round"></span>
+          </label>
+          <span class="theme-label">ETA Countdown</span>
+        </div>
       </div>
 
       <div id="status-messages"></div>
@@ -29,13 +36,28 @@
       const API_BASE_URL = "https://data.etabus.gov.hk/v1/transport/kmb";
       const STOP_CACHE_KEY = "kmb_stop_data_cache_singyin"; 
       const CACHE_EXPIRY_HOURS = 23;
-      const ETA_REFRESH_INTERVAL = 60000;
+      const ETA_REFRESH_INTERVAL = 60000; // 1 minute
 
       const statusMessagesDiv = document.getElementById("status-messages");
       const etaResultsAreaDiv = document.getElementById("eta-results-area");
+      const countdownToggleSy = document.getElementById('countdownToggleSy');
       
       let fullStopDetailsCache = {}; 
       let etaRefreshTimer = null;
+      let activeEtaCellsSy = [];
+      let countdownUpdateIntervalSy = null;
+
+      function saveSettingSy(key, value) {
+        // console.log(`Saving setting (SY): ${key}`, value); // Optional: for debugging
+        localStorage.setItem(key + '_sy', JSON.stringify(value));
+      }
+
+      function loadSettingSy(key, defaultValue) {
+        const item = localStorage.getItem(key + '_sy');
+        if (item === null) return defaultValue;
+        try { return JSON.parse(item); } 
+        catch (e) { console.error(`Error loading setting (SY) ${key}:`, e); localStorage.removeItem(key + '_sy'); return defaultValue; }
+      }
 
       const predefinedStopGroups = [
         {
@@ -97,7 +119,7 @@
         }
       }
       
-      async function getFullStopList() { // Kept for potential future use, but not strictly needed for singyin.html's current display
+      async function getFullStopList() { 
         let cached = loadFromCache(STOP_CACHE_KEY);
         if (cached && isCacheValid(cached)) {
           console.log("Using cached full stop list for names.");
@@ -109,10 +131,10 @@
             const data = await fetchData(`${API_BASE_URL}/stop`);
             if (data && data.data) {
                 data.data.forEach(stop => fullStopDetailsCache[stop.stop] = {
-                    name_en: processName(stop.name_en),
+                    name_en: processName(stop.name_en), // Ensure names are processed if used
                     name_tc: stop.name_tc 
                 });
-                saveToCache(STOP_CACHE_KEY, data.data);
+                saveToCache(STOP_CACHE_KEY, data.data); // Cache the raw data
                 console.log("Full stop list processed and cached for names.");
             }
         } catch (error) {
@@ -132,6 +154,7 @@
       
       function processName(name) {
         if (!name) return "";
+        // Simplified from index.html's customTitleCase as it's not strictly needed for singyin's display
         return name.replace(/(BBI)-/gi, "$1 - ").replace(/(轉車站)-/g, "$1 - ");
       }
 
@@ -192,6 +215,20 @@
         catch (e) { return "-"; }
       }
 
+      function formatEtaCountdownSy(isoTimestamp) {
+        if (!isoTimestamp) return "-";
+        const etaTime = new Date(isoTimestamp).getTime();
+        const now = new Date().getTime();
+        let diff = Math.round((etaTime - now) / 1000);
+
+        if (diff <= 0) {
+            return diff < -30 ? "Departed" : "Due";
+        }
+        const minutes = Math.floor(diff / 60);
+        const seconds = diff % 60;
+        return `${minutes}m ${seconds.toString().padStart(2, '0')}s`;
+      }
+
       function formatRouteNumberForDisplay(routeStr) {
         if (!routeStr) return '-';
         return routeStr;
@@ -207,15 +244,15 @@
         return { prefix: prefix, mainNumStr: mainNumStr, mainNumLen: mainNumStr.length, suffix: suffix, original: routeStr };
       }
 
-      function renderEtaTable(groupDisplayName, etasFromApi, stopPlatformMap) {
-        console.log(`Rendering ETA table for (singyin): ${groupDisplayName}`);
+      function renderEtaTable(groupDisplayName, etasFromApi, stopPlatformMap, showCountdown = false) {
+        console.log(`Rendering ETA table for (singyin): ${groupDisplayName}, showCountdown: ${showCountdown}`);
         let groupContainer = document.getElementById(`group-container-${groupDisplayName.replace(/\s+/g, '-')}`);
         if (!groupContainer) {
             groupContainer = document.createElement("div");
             groupContainer.id = `group-container-${groupDisplayName.replace(/\s+/g, '-')}`;
             etaResultsAreaDiv.appendChild(groupContainer);
         }
-        groupContainer.innerHTML = '';
+        groupContainer.innerHTML = ''; // Clear previous content for this group
 
         const tableContainer = document.createElement("div");
         tableContainer.className = "eta-table-container";
@@ -250,8 +287,6 @@
             const primaryKey = `${eta.route}-${eta.dir}-${eta.dest_en}-${eta.dest_tc}`;
             if (!committedServiceTypes[primaryKey]) committedServiceTypes[primaryKey] = eta.service_type;
             if (eta.service_type === committedServiceTypes[primaryKey]) {
-                // For singyin.html, each ETA entry is distinct by its original stop_id (eta.stop)
-                // So, the displayKey includes eta.stop to ensure we can map back to the correct platform.
                 const displayKey = `${primaryKey}-${eta.stop}`; 
                 if (!processedGroupedEtas[displayKey]) {
                      processedGroupedEtas[displayKey] = { details: { ...eta }, timedEtas: [], remarksOnly: []  };
@@ -274,16 +309,16 @@
             if (mainNumLenA < mainNumLenB) return -1; if (mainNumLenA > mainNumLenB) return 1;
             if (routeA.mainNumStr < routeB.mainNumStr) return -1; if (routeA.mainNumStr > routeB.mainNumStr) return 1;
             if (routeA.suffix < routeB.suffix) return -1; if (routeA.suffix > routeB.suffix) return 1;
-            const platformA = stopPlatformMap[groupA.details.stop] || ''; // group.details.stop is the stop_id
+            const platformA = stopPlatformMap[groupA.details.stop] || ''; 
             const platformB = stopPlatformMap[groupB.details.stop] || '';
             if (platformA < platformB) return -1; if (platformA > platformB) return 1;
             return 0;
         });
 
         sortedEtaGroups.forEach(group => {
-            const timedEtas = group.timedEtas.sort((a, b) => a.eta_seq - b.eta_seq).slice(0, 3);
+            const timedEtas = group.timedEtas.sort((a, b) => new Date(a.eta) - new Date(b.eta)).slice(0, 3); // Sort by actual time
             const allRemarksForDisplay = new Map();
-            const platformCode = stopPlatformMap[group.details.stop] || '-'; // Use group.details.stop
+            const platformCode = stopPlatformMap[group.details.stop] || '-'; 
 
             if (timedEtas.length > 0) {
                 const row = document.createElement("tr");
@@ -304,15 +339,23 @@
                 for (let i = 0; i < 3; i++) {
                     const td = document.createElement("td");
                     if (timedEtas[i]) {
-                        let etaDisplay = formatEtaTime(timedEtas[i].eta);
+                        const isScheduled = timedEtas[i].rmk_en === "Scheduled Bus" || timedEtas[i].rmk_tc === "原定班次";
+                        td.dataset.etaTimestamp = timedEtas[i].eta;
+
+                        let etaDisplayContent = (showCountdown && !isScheduled && new Date(timedEtas[i].eta) > new Date()) ? formatEtaCountdownSy(timedEtas[i].eta) : formatEtaTime(timedEtas[i].eta);
                         let remarkText = timedEtas[i].rmk_en || timedEtas[i].rmk_tc || "";
-                        if (timedEtas[i].rmk_en === "Scheduled Bus" || timedEtas[i].rmk_tc === "原定班次") td.classList.add("scheduled-eta");
-                        else if (remarkText) {
+
+                        let displayHtml = `<span class="eta-time-value">${etaDisplayContent}</span>`;
+
+                        if (isScheduled) td.classList.add("scheduled-eta");
+
+                        if (remarkText && !(isScheduled && (remarkText === "Scheduled Bus" || remarkText === "原定班次"))) {
                             const symbol = remarkSymbols[remarkSymbolIndex % remarkSymbols.length];
-                            etaDisplay += `<span class="remark-symbol">${symbol}</span>`;
+                            displayHtml += `<span class="remark-symbol">${symbol}</span>`;
                             if (!allRemarksForDisplay.has(remarkText)) { allRemarksForDisplay.set(remarkText, symbol); remarkSymbolIndex++; }
                         }
-                        td.innerHTML = etaDisplay;
+                        td.innerHTML = displayHtml;
+                        if (showCountdown && !isScheduled && timedEtas[i].eta && new Date(timedEtas[i].eta) > new Date()) activeEtaCellsSy.push(td);
                     } else td.textContent = "-";
                     row.appendChild(td);
                 }
@@ -339,7 +382,7 @@
                     row.appendChild(remarkRouteCell);
 
                     const remarkPlatCell = document.createElement("td");
-                    remarkPlatCell.textContent = platformCode; // Use the same platformCode
+                    remarkPlatCell.textContent = platformCode; 
                     row.appendChild(remarkPlatCell);
                     
                     const remarkDestEnCell = document.createElement("td"); remarkDestEnCell.textContent = remarkEta.dest_en; row.appendChild(remarkDestEnCell);
@@ -357,24 +400,52 @@
         tableContainer.appendChild(table);
         groupContainer.appendChild(tableContainer);
       }
+
+      function updateDisplayedEtaFormatSy() {
+        const showCountdown = countdownToggleSy.checked;
+        document.querySelectorAll('#eta-results-area td[data-eta-timestamp]').forEach(cell => {
+            const timestamp = cell.dataset.etaTimestamp;
+            const isScheduled = cell.classList.contains("scheduled-eta");
+            const timeValueSpan = cell.querySelector('.eta-time-value');
+
+            if (timestamp && timeValueSpan) {
+                const etaDate = new Date(timestamp);
+                if (showCountdown && !isScheduled && etaDate > new Date()) {
+                    timeValueSpan.textContent = formatEtaCountdownSy(timestamp);
+                    if (!activeEtaCellsSy.includes(cell)) activeEtaCellsSy.push(cell);
+                } else {
+                    timeValueSpan.textContent = formatEtaTime(timestamp);
+                    activeEtaCellsSy = activeEtaCellsSy.filter(c => c !== cell);
+                }
+            }
+        });
+        if (showCountdown && activeEtaCellsSy.length > 0) startCountdownUpdaterSy();
+        else stopCountdownUpdaterSy();
+      }
       
       async function loadSingYinEtas(isUpdate = false) {
         console.log(isUpdate ? "Auto-refreshing ETAs..." : "Initial loadSingYinEtas triggered.");
-        if (!isUpdate) {
-            etaResultsAreaDiv.innerHTML = ""; 
+        if (!isUpdate) { 
             setStatus("Loading Pak Hung House ETAs...", "loading");
         } else {
             console.log("Background update in progress...");
         }
 
         try {
-            // await getFullStopList(); // Optional
+            // await getFullStopList(); // Optional: Can be enabled if full stop names are desired for some reason
+            if (!isUpdate) { 
+                etaResultsAreaDiv.innerHTML = ""; // Clear everything only on initial load
+            }
+            stopCountdownUpdaterSy(); 
+            activeEtaCellsSy = [];    
+
             for (const group of predefinedStopGroups) {
                 let allEtasForGroup = [];
                 const stopPlatformMap = {}; 
 
                 if (!isUpdate) {
                     console.log(`Fetching ETAs for group: ${group.groupName}`);
+                    // Only set status for initial load of each group, not for background updates
                     setStatus(`Fetching ETAs for ${group.groupName}...`, "loading", isUpdate);
                 }
 
@@ -392,9 +463,8 @@
                 });
                 
                 console.log(`ETAs fetched for group ${group.groupName}. Total raw ETAs: ${allEtasForGroup.length}`);
-                if (allEtasForGroup.length > 0 || group.stops.length > 0) {
-                    renderEtaTable(group.groupName, allEtasForGroup, stopPlatformMap);
-                }
+                // Render or re-render the table for this specific group
+                renderEtaTable(group.groupName, allEtasForGroup, stopPlatformMap, countdownToggleSy.checked);
             }
             
             if (etaResultsAreaDiv.innerHTML === "" && !isUpdate) {
@@ -404,6 +474,9 @@
             } else {
                 console.log("Silent update complete.");
             }
+            // After all tables are rendered/re-rendered, start the countdown if needed
+            if (countdownToggleSy.checked && activeEtaCellsSy.length > 0) startCountdownUpdaterSy(); else stopCountdownUpdaterSy();
+
 
         } catch (error) {
           console.error("Error in loadSingYinEtas:", error);
@@ -411,10 +484,53 @@
         }
       }
 
+      function startCountdownUpdaterSy() {
+        stopCountdownUpdaterSy(); 
+        if (activeEtaCellsSy.length > 0 && countdownToggleSy.checked) {
+          countdownUpdateIntervalSy = setInterval(() => {
+            activeEtaCellsSy = activeEtaCellsSy.filter(cell => {
+              if (!document.body.contains(cell)) return false; 
+              const timestamp = cell.dataset.etaTimestamp;
+              const timeValueSpan = cell.querySelector('.eta-time-value');
+              if (timestamp && timeValueSpan && !cell.classList.contains('scheduled-eta')) {
+                const etaDate = new Date(timestamp);
+                if (etaDate > new Date()) {
+                    timeValueSpan.textContent = formatEtaCountdownSy(timestamp);
+                } else {
+                    timeValueSpan.textContent = formatEtaTime(timestamp); 
+                    return false; 
+                }
+              } else if (cell.classList.contains('scheduled-eta')) {
+                  return false; 
+              }
+              return true;
+            });
+            if (activeEtaCellsSy.length === 0) stopCountdownUpdaterSy();
+          }, 1000);
+        }
+      }
+
+      function stopCountdownUpdaterSy() {
+        if (countdownUpdateIntervalSy) clearInterval(countdownUpdateIntervalSy);
+        countdownUpdateIntervalSy = null;
+      }
+
+      function setCountdownModeSy(showCountdown) {
+        saveSettingSy('showCountdownSy', showCountdown);
+        countdownToggleSy.checked = showCountdown;
+        updateDisplayedEtaFormatSy(); 
+      }
+
       document.addEventListener('DOMContentLoaded', () => {
-        loadSingYinEtas();
+        const savedCountdownPreferenceSy = loadSettingSy('showCountdownSy', false); 
+        setCountdownModeSy(savedCountdownPreferenceSy);
+        // countdownToggleSy.checked = savedCountdownPreferenceSy; // setCountdownModeSy already does this
+
+        loadSingYinEtas(); // Initial load
         if (etaRefreshTimer) clearInterval(etaRefreshTimer);
         etaRefreshTimer = setInterval(() => loadSingYinEtas(true), ETA_REFRESH_INTERVAL);
+
+        countdownToggleSy.addEventListener('change', (event) => { setCountdownModeSy(event.target.checked); });
       });
     </script>
 

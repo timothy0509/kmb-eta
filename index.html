@@ -17,6 +17,13 @@
           </label>
           <span class="theme-label">Dark Mode</span>
         </div>
+        <div class="theme-switch-wrapper">
+          <label class="theme-switch" for="countdownToggle">
+            <input type="checkbox" id="countdownToggle" />
+            <span class="slider round"></span>
+          </label>
+          <span class="theme-label">ETA Countdown</span>
+        </div>
       </div>
 
       <div class="controls">
@@ -59,7 +66,7 @@
     <script>
       const API_BASE_URL = "https://data.etabus.gov.hk/v1/transport/kmb";
       const STOP_CACHE_KEY = "kmb_stop_data_cache";
-      const ROUTE_CACHE_KEY = "kmb_route_data_cache";
+      const ROUTE_CACHE_KEY = "kmb_route_data_cache"; // Not used in current logic but kept for consistency
       const CACHE_EXPIRY_HOURS = 23;
 
       const OVERRIDE_WORDS = new Set([
@@ -75,12 +82,18 @@
       const statusMessagesDiv = document.getElementById("status-messages");
       const stopSelectionAreaDiv = document.getElementById("stop-selection-area");
       const etaResultsAreaDiv = document.getElementById("eta-results-area");
+      const countdownToggle = document.getElementById('countdownToggle');
       const darkModeToggle = document.getElementById('darkModeToggle');
       
       let stopNameCache = {};
+      let activeEtaCells = []; // To store cells that need countdown updates
+      let countdownUpdateInterval = null;
+      let currentSearchContext = null; // To store details for auto-refresh
+      let autoRefreshTimer = null;
 
       function saveToCache(key, data) {
         const cacheEntry = { timestamp: new Date().getTime(), data: data };
+        // console.log(`Saving to cache: ${key}`, cacheEntry); // Optional: for debugging
         localStorage.setItem(key, JSON.stringify(cacheEntry));
       }
 
@@ -89,6 +102,18 @@
         if (!item) return null;
         try { return JSON.parse(item); }
         catch (e) { localStorage.removeItem(key); return null; }
+      }
+
+      function saveSetting(key, value) {
+        // console.log(`Saving setting: ${key}`, value); // Optional: for debugging
+        localStorage.setItem(key, JSON.stringify(value));
+      }
+
+      function loadSetting(key, defaultValue) {
+        const item = localStorage.getItem(key);
+        if (item === null) return defaultValue;
+        try { return JSON.parse(item); }
+        catch (e) { console.error(`Error loading setting ${key}:`, e); localStorage.removeItem(key); return defaultValue; }
       }
 
       function isCacheValid(cacheEntry, expiryHours = CACHE_EXPIRY_HOURS) {
@@ -181,8 +206,12 @@
         return { baseName: stopNameEn, platform: null };
       }
 
-      function setStatus(message, type = "info") {
+      function setStatus(message, type = "info", isUpdate = false) {
         console.log(`UI Status: [${type}] ${message}`);
+        if (isUpdate && statusMessagesDiv.style.display === 'none' && type === 'loading') {
+            // Don't show "loading" for silent background updates if no status is currently visible
+            return;
+        }
         statusMessagesDiv.textContent = message;
         statusMessagesDiv.className = `status-${type}`;
         statusMessagesDiv.style.display = "block";
@@ -233,6 +262,25 @@
         catch (e) { return "-"; }
       }
 
+      function formatEtaCountdown(isoTimestamp) {
+        if (!isoTimestamp) return "-";
+        const etaTime = new Date(isoTimestamp).getTime();
+        const now = new Date().getTime();
+        let diff = Math.round((etaTime - now) / 1000); // Difference in seconds
+
+        if (diff <= 0) { // Show "Due" for 0 or negative
+            // Check if the specific cell was marked as scheduled
+            // This requires the cell to be passed or queried, which is complex here.
+            // For simplicity in this function, we'll assume if it's past, it's past.
+            // The renderEtaTable logic will handle not adding past scheduled buses to countdown.
+            return diff < -30 ? "Departed" : "Due"; // Show "Departed" if more than 30s past, else "Due"
+        }
+
+        const minutes = Math.floor(diff / 60);
+        const seconds = diff % 60;
+        return `${minutes}m ${seconds.toString().padStart(2, '0')}s`;
+      }
+
       function formatRouteNumberForDisplay(routeStr) {
         if (!routeStr) return '-';
         return routeStr;
@@ -248,14 +296,18 @@
         return { prefix: prefix, mainNumStr: mainNumStr, mainNumLen: mainNumStr.length, suffix: suffix, original: routeStr };
       }
 
-      function renderEtaTable(stopIdentifier, etasFromApi, isGrouped = false, platformForTitle = null) {
-        console.log(`Rendering ETA table for: ${isGrouped ? stopIdentifier.groupName : stopIdentifier.name_en}, isGrouped: ${isGrouped}, platformForTitle: ${platformForTitle}`);
+      function renderEtaTable(stopIdentifier, etasFromApi, isGrouped = false, platformForTitle = null, showCountdown = false) {
+        console.log(`Rendering ETA table for: ${isGrouped ? stopIdentifier.groupName : stopIdentifier.name_en}, isGrouped: ${isGrouped}, platformForTitle: ${platformForTitle}, showCountdown: ${showCountdown}`);
         const container = document.createElement("div");
         container.className = "eta-table-container";
         const title = document.createElement("h3");
         if (isGrouped) title.textContent = `ETAs for ${stopIdentifier.groupName} ${platformForTitle ? `- Platform: ${platformForTitle}` : ''}`;
         else title.textContent = `ETAs for ${stopIdentifier.name_en} / ${stopIdentifier.name_tc}`;
         container.appendChild(title);
+        // Store identifier for potential refresh, ensuring it's a simple object for stringify
+        const refreshIdentifier = isGrouped ? { groupName: stopIdentifier.groupName, stops: stopIdentifier.stops.map(s => ({stop: s.stop, name_en: s.name_en, name_tc: s.name_tc})) } : { stop: stopIdentifier.stop, name_en: stopIdentifier.name_en, name_tc: stopIdentifier.name_tc };
+        container.dataset.stopIdentifier = JSON.stringify(refreshIdentifier);
+
 
         if (!etasFromApi || etasFromApi.length === 0) {
           const p = document.createElement("p");
@@ -272,7 +324,7 @@
         const headersBase = ["Rt.", "Dest(EN)", "目的地", "ETA 1", "ETA 2", "ETA 3", "Remarks"];
         let headers = [...headersBase]; 
         
-        const showPlatformColumn = isGrouped && !platformForTitle; 
+        const showPlatformColumn = isGrouped && !platformForTitle && groupContainsMultiplePlatforms(stopIdentifier, etasFromApi);
         console.log("showPlatformColumn (index.html logic):", showPlatformColumn);
 
         if (showPlatformColumn) headers.splice(1, 0, "Plat.");
@@ -289,13 +341,9 @@
             const primaryKey = `${eta.route}-${eta.dir}-${eta.dest_en}-${eta.dest_tc}`;
             if (!committedServiceTypes[primaryKey]) committedServiceTypes[primaryKey] = eta.service_type;
             if (eta.service_type === committedServiceTypes[primaryKey]) {
-                // For index.html, the key for processedGroupedEtas should be just primaryKey
-                // as we group all ETAs for a route/dest, and then decide if/how to show platform
                 if (!processedGroupedEtas[primaryKey]) {
                      processedGroupedEtas[primaryKey] = { details: { ...eta }, timedEtas: [], remarksOnly: []  };
                 }
-                // We need to ensure each ETA object carries its original stop_id if we are in grouped mode
-                // The 'eta.stop' property from the API IS the stop_id.
                 if (eta.eta) processedGroupedEtas[primaryKey].timedEtas.push(eta);
                 else if (eta.rmk_en || eta.rmk_tc || eta.rmk_sc) processedGroupedEtas[primaryKey].remarksOnly.push(eta);
             }
@@ -318,7 +366,7 @@
         });
 
         sortedEtaGroups.forEach(group => {
-            const timedEtas = group.timedEtas.sort((a, b) => a.eta_seq - b.eta_seq).slice(0, 3);
+            const timedEtas = group.timedEtas.sort((a, b) => new Date(a.eta) - new Date(b.eta)).slice(0, 3); // Sort by actual ETA time
             const allRemarksForDisplay = new Map();
             if (timedEtas.length > 0) {
                 const row = document.createElement("tr");
@@ -342,15 +390,23 @@
                 for (let i = 0; i < 3; i++) {
                     const td = document.createElement("td");
                     if (timedEtas[i]) {
-                        let etaDisplay = formatEtaTime(timedEtas[i].eta);
+                        const isScheduled = timedEtas[i].rmk_en === "Scheduled Bus" || timedEtas[i].rmk_tc === "原定班次";
+                        td.dataset.etaTimestamp = timedEtas[i].eta; // Store for countdown/toggle
+                        
+                        let etaDisplayContent = (showCountdown && !isScheduled && new Date(timedEtas[i].eta) > new Date()) ? formatEtaCountdown(timedEtas[i].eta) : formatEtaTime(timedEtas[i].eta);
                         let remarkText = timedEtas[i].rmk_en || timedEtas[i].rmk_tc || "";
-                        if (timedEtas[i].rmk_en === "Scheduled Bus" || timedEtas[i].rmk_tc === "原定班次") td.classList.add("scheduled-eta");
-                        else if (remarkText) {
+                        
+                        let displayHtml = `<span class="eta-time-value">${etaDisplayContent}</span>`;
+
+                        if (isScheduled) td.classList.add("scheduled-eta");
+                        
+                        if (remarkText && !(isScheduled && (remarkText === "Scheduled Bus" || remarkText === "原定班次"))) {
                             const symbol = remarkSymbols[remarkSymbolIndex % remarkSymbols.length];
-                            etaDisplay += `<span class="remark-symbol">${symbol}</span>`;
+                            displayHtml += `<span class="remark-symbol">${symbol}</span>`;
                             if (!allRemarksForDisplay.has(remarkText)) { allRemarksForDisplay.set(remarkText, symbol); remarkSymbolIndex++; }
                         }
-                        td.innerHTML = etaDisplay;
+                        td.innerHTML = displayHtml;
+                        if (showCountdown && !isScheduled && timedEtas[i].eta && new Date(timedEtas[i].eta) > new Date()) activeEtaCells.push(td);
                     } else td.textContent = "-";
                     row.appendChild(td);
                 }
@@ -387,7 +443,6 @@
                     const remarkDestTcCell = document.createElement("td"); remarkDestTcCell.textContent = remarkEta.dest_tc; row.appendChild(remarkDestTcCell);
                     
                     const remarkContentCell = document.createElement("td");
-                    // Calculate colspan: total headers - (Rt + [optional Plat] + DestEN + DestTC)
                     remarkContentCell.colSpan = headers.length - (showPlatformColumn ? 4 : 3); 
                     remarkContentCell.textContent = remarkEta.rmk_en || remarkEta.rmk_tc || remarkEta.rmk_sc;
                     row.appendChild(remarkContentCell);
@@ -399,7 +454,48 @@
         container.appendChild(table);
         etaResultsAreaDiv.appendChild(container);
       }
+
+      function groupContainsMultiplePlatforms(groupStopIdentifier, etas) {
+        if (!groupStopIdentifier || !groupStopIdentifier.stops || etas.length === 0) return false;
+        const platformsInUse = new Set();
+        etas.forEach(eta => {
+            const stopDetails = stopNameCache[eta.stop];
+            if (stopDetails) {
+                const platformInfo = parsePlatformFromStopName(stopDetails.name_en);
+                if (platformInfo.platform) {
+                    platformsInUse.add(platformInfo.platform);
+                } else {
+                    // If a stop within the group has no explicit platform, consider it distinct
+                    platformsInUse.add(`no_platform_${eta.stop}`);
+                }
+            }
+        });
+        return platformsInUse.size > 1;
+      }
       
+      function updateDisplayedEtaFormat() {
+        const showCountdown = countdownToggle.checked;
+        document.querySelectorAll('#eta-results-area td[data-eta-timestamp]').forEach(cell => {
+            const timestamp = cell.dataset.etaTimestamp;
+            const isScheduled = cell.classList.contains("scheduled-eta");
+            const timeValueSpan = cell.querySelector('.eta-time-value');
+
+            if (timestamp && timeValueSpan) {
+                const etaDate = new Date(timestamp);
+                if (showCountdown && !isScheduled && etaDate > new Date()) {
+                    timeValueSpan.textContent = formatEtaCountdown(timestamp);
+                    if (!activeEtaCells.includes(cell)) activeEtaCells.push(cell);
+                } else {
+                    timeValueSpan.textContent = formatEtaTime(timestamp);
+                    activeEtaCells = activeEtaCells.filter(c => c !== cell);
+                }
+            }
+        });
+
+        if (showCountdown && activeEtaCells.length > 0) startCountdownUpdater();
+        else stopCountdownUpdater();
+      }
+
       async function handleSearch() {
         console.log("handleSearch triggered.");
         const stopQuery = stopNameInput.value.trim();
@@ -412,7 +508,11 @@
             return; 
         }
         etaResultsAreaDiv.innerHTML = ""; stopSelectionAreaDiv.innerHTML = ""; 
+        activeEtaCells = []; 
+        stopCountdownUpdater(); 
+        if (autoRefreshTimer) clearInterval(autoRefreshTimer); 
         console.log("Setting initial status to 'Searching...'");
+        currentSearchContext = { stopQuery, routeFilters, useSmartGrouping, type: null, data: null }; 
         setStatus("Searching...", "loading");
 
         try {
@@ -445,6 +545,7 @@
           
           if (useSmartGrouping) {
             console.log("Smart grouping enabled.");
+            currentSearchContext.type = 'smartGroup';
             const groupedByBaseName = {};
             matchedStops.forEach(stop => {
                 const { baseName } = parsePlatformFromStopName(stop.name_en);
@@ -452,6 +553,7 @@
                 groupedByBaseName[baseName].stops.push(stop);
             });
 
+            currentSearchContext.data = groupedByBaseName; // Store for refresh
             for (const groupKey in groupedByBaseName) {
                 const group = groupedByBaseName[groupKey];
                 let allEtasForGroup = [];
@@ -460,7 +562,7 @@
                 
                 const etaPromises = group.stops.map(stop => 
                     getStopEta(stop.stop).catch(err => {
-                        console.error(`Failed to fetch ETA for stop ${stop.id} in group ${group.groupName}:`, err);
+                        console.error(`Failed to fetch ETA for stop ${stop.stop} in group ${group.groupName}:`, err); // Use stop.stop
                         return [];
                     })
                 );
@@ -473,18 +575,20 @@
                 
                 console.log(`ETAs fetched for group ${group.groupName}. Count: ${allEtasForGroup.length}`);
                 if (allEtasForGroup.length > 0 || group.stops.length > 0) {
-                     renderEtaTable({ groupName: group.groupName }, allEtasForGroup, true, null);
+                     renderEtaTable(group, allEtasForGroup, true, null, countdownToggle.checked);
                 }
             }
           } else {
             console.log("Smart grouping disabled. Fetching for individual matched stops.");
+            currentSearchContext.type = 'individual';
+            currentSearchContext.data = matchedStops; // Store for refresh
             for (const stop of matchedStops) {
                 console.log(`Fetching ETAs for individual stop: ${stop.name_en}`);
                 setStatus(`Fetching ETAs for: ${stop.name_en}...`, "loading");
                 let etasFromApi = await getStopEta(stop.stop);
                 console.log(`ETAs fetched for stop ${stop.name_en}. Count: ${etasFromApi.length}`);
                 if (routeFilters.length > 0) etasFromApi = etasFromApi.filter(eta => routeFilters.includes(eta.route.toUpperCase()));
-                renderEtaTable(stop, etasFromApi, false); // isGrouped is false
+                renderEtaTable(stop, etasFromApi, false, null, countdownToggle.checked);
             }
           }
           
@@ -495,6 +599,11 @@
             console.log("ETA results rendered, clearing final status.");
             clearStatus();
           }
+          if (countdownToggle.checked && activeEtaCells.length > 0) startCountdownUpdater();
+          
+          if (etaResultsAreaDiv.innerHTML !== "" && !autoRefreshTimer) {
+            autoRefreshTimer = setInterval(refreshCurrentEtas, 60000);
+          }
 
         } catch (error) {
           console.error("Error in handleSearch:", error);
@@ -502,19 +611,108 @@
         }
       }
 
+      async function refreshCurrentEtas() {
+        if (!currentSearchContext || !currentSearchContext.type || etaResultsAreaDiv.innerHTML === "") {
+            console.log("Refresh: No current search context or no results to refresh.");
+            if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; }
+            return;
+        }
+        console.log("Auto-refreshing ETAs...");
+        // setStatus("Refreshing ETAs...", "loading", true); // Optional: silent update status
+
+        try {
+            const { routeFilters, useSmartGrouping, type, data } = currentSearchContext;
+            etaResultsAreaDiv.innerHTML = ""; 
+            activeEtaCells = []; 
+
+            if (type === 'smartGroup' && data) {
+                for (const groupKey in data) {
+                    const group = data[groupKey]; // group is { groupName: '...', stops: [...] }
+                    let allEtasForGroup = [];
+                    const etaPromises = group.stops.map(stop => getStopEta(stop.stop).catch(() => []));
+                    const etaResultsArray = await Promise.all(etaPromises);
+                    etaResultsArray.forEach(etas => allEtasForGroup.push(...etas));
+                    if (routeFilters.length > 0) {
+                        allEtasForGroup = allEtasForGroup.filter(eta => routeFilters.includes(eta.route.toUpperCase()));
+                    }
+                    renderEtaTable(group, allEtasForGroup, true, null, countdownToggle.checked);
+                }
+            } else if (type === 'individual' && data) { 
+                for (const stop of data) { 
+                    let etasFromApi = await getStopEta(stop.stop);
+                    if (routeFilters.length > 0) etasFromApi = etasFromApi.filter(eta => routeFilters.includes(eta.route.toUpperCase()));
+                    renderEtaTable(stop, etasFromApi, false, null, countdownToggle.checked);
+                }
+            }
+            
+            if (countdownToggle.checked && activeEtaCells.length > 0) {
+                 startCountdownUpdater();
+            } else {
+                 stopCountdownUpdater();
+            }
+            // if (statusMessagesDiv.textContent.includes("Refreshing ETAs...")) clearStatus();
+        } catch (error) {
+            console.error("Error during auto-refresh:", error);
+            // setStatus("Error refreshing ETAs.", "error", true); // Optional: silent error
+        }
+      }
+
+      function startCountdownUpdater() {
+        stopCountdownUpdater(); 
+        if (activeEtaCells.length > 0 && countdownToggle.checked) {
+          countdownUpdateInterval = setInterval(() => {
+            activeEtaCells = activeEtaCells.filter(cell => {
+              if (!document.body.contains(cell)) return false; 
+              const timestamp = cell.dataset.etaTimestamp;
+              const timeValueSpan = cell.querySelector('.eta-time-value');
+              if (timestamp && timeValueSpan && !cell.classList.contains('scheduled-eta')) {
+                const etaDate = new Date(timestamp);
+                if (etaDate > new Date()) {
+                    timeValueSpan.textContent = formatEtaCountdown(timestamp);
+                } else {
+                    timeValueSpan.textContent = formatEtaTime(timestamp); // Or "Departed" / "Due"
+                    return false; // Remove from active countdown
+                }
+              } else if (cell.classList.contains('scheduled-eta')) {
+                  return false; // Remove scheduled buses from active countdown
+              }
+              return true; 
+            });
+            if (activeEtaCells.length === 0) stopCountdownUpdater();
+          }, 1000);
+        }
+      }
+
+      function stopCountdownUpdater() {
+        if (countdownUpdateInterval) clearInterval(countdownUpdateInterval);
+        countdownUpdateInterval = null;
+      }
+
       searchButton.addEventListener("click", handleSearch);
       stopNameInput.addEventListener("keypress", (event) => { if (event.key === "Enter") handleSearch(); });
       routeFilterInput.addEventListener("keypress", (event) => { if (event.key === "Enter") handleSearch(); });
+      countdownToggle.addEventListener('change', (event) => { setCountdownMode(event.target.checked); });
+      darkModeToggle.addEventListener('change', (event) => { setDarkMode(event.target.checked); });
 
       function setDarkMode(isDark) {
-        if (isDark) { document.body.classList.add('dark-mode'); localStorage.setItem('theme', 'dark'); }
-        else { document.body.classList.remove('dark-mode'); localStorage.setItem('theme', 'light'); }
+        document.body.classList.toggle('dark-mode', isDark);
+        saveSetting('theme', isDark ? 'dark' : 'light');
         darkModeToggle.checked = isDark;
       }
-      darkModeToggle.addEventListener('change', (event) => { setDarkMode(event.target.checked); });
-      const savedTheme = localStorage.getItem('theme');
-      if (savedTheme) { setDarkMode(savedTheme === 'dark'); }
-      else { const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; setDarkMode(prefersDark); }
+
+      function setCountdownMode(showCountdown) {
+        saveSetting('showCountdown', showCountdown);
+        countdownToggle.checked = showCountdown;
+        updateDisplayedEtaFormat(); 
+      }
+
+      // Initial setup
+      const savedTheme = loadSetting('theme', (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light');
+      setDarkMode(savedTheme === 'dark');
+
+      const savedCountdownPreference = loadSetting('showCountdown', false); 
+      setCountdownMode(savedCountdownPreference);
+      countdownToggle.checked = savedCountdownPreference; 
 
       setStatus("Enter a stop name to begin.", "info");
     </script>
