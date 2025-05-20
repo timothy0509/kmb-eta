@@ -1,13 +1,15 @@
+/* src/components/ui/Countdown.module.css */
 .countdown {
   font-weight: 500;
+  white-space: nowrap; /* Prevent wrapping of time */
 }
 
 .due {
-  color: var(--color-error);
+  color: var(--current-status-error-text); /* Use error text color for due */
   font-weight: bold;
 }
 
-.scheduled {
-  color: var(--color-text-secondary); /* Or a distinct color for scheduled */
+.scheduledItalic { /* New style for scheduled buses in countdown mode */
+  color: var(--current-on-surface-variant-color); /* Greyish text */
   font-style: italic;
 }

@@ -1,126 +1,134 @@
-.settingsPage {
-  max-width: 700px;
+/* src/pages/SettingsPage.module.css */
+/* Adopting a similar card-based style as MainPage */
+
+.settingsContent { /* Specific container for settings page content if needed */
+  max-width: 700px; /* Or adjust as preferred */
   margin: 0 auto;
 }
 
-.settingsPage h1 {
+.pageTitle {
+  font-family: var(--font-family-display);
   text-align: center;
-  color: var(--color-primary);
-  margin-bottom: var(--spacing-xl);
+  color: var(--kmb-red); /* Match main page title color */
+  margin-bottom: var(--spacing-xl, 32px); /* Use global spacing */
+  font-size: 2em; /* Adjust as needed */
+  font-weight: 700;
 }
 
-.settingsSection {
-  margin-bottom: var(--spacing-l);
-  padding: var(--spacing-l);
+.settingsSectionCard {
+  background-color: var(--current-surface-color);
+  padding: var(--spacing-l, 24px);
+  border-radius: var(--border-radius-large, 12px); /* Use global radius */
+  box-shadow: 0 4px 12px var(--current-shadow-color); /* Use global shadow */
+  margin-bottom: var(--spacing-l, 24px);
 }
 
-.settingsSection h2 {
-  font-size: var(--font-size-large);
-  color: var(--color-on-surface-variant);
-  margin-bottom: var(--spacing-m);
-  padding-bottom: var(--spacing-s);
-  border-bottom: 1px solid var(--color-outline);
+.sectionTitle {
+  font-family: var(--font-family-sans);
+  font-size: 1.25em; /* Adjust as needed */
+  color: var(--current-on-surface-variant-color);
+  margin-bottom: var(--spacing-m, 16px);
+  padding-bottom: var(--spacing-s, 8px);
+  border-bottom: 1px solid var(--current-outline-color);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-s, 8px);
 }
+.sectionTitle .material-symbols-outlined {
+  font-size: 1.3em; /* Icon size relative to title */
+  color: var(--primary-color); /* Accent color for icons */
+}
+
 
 .settingItem {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--spacing-m) 0;
-  min-height: 48px; /* Material Design touch target */
+  padding: var(--spacing-m, 16px) 0;
+  min-height: 56px; /* Good touch target height */
 }
 .settingItem:not(:last-child) {
-    border-bottom: 1px solid var(--color-surface-variant);
+    border-bottom: 1px solid var(--current-outline-color);
 }
 
-
-.settingItem > span:first-child {
-  color: var(--color-on-surface);
+.settingLabel {
+  color: var(--current-on-surface-color);
   font-weight: 500;
+  font-size: 1em;
+  flex-grow: 1;
 }
 
-/* Custom Switch for Dark Mode */
-.switch {
+/* Re-use theme switch styles from MainPage.module.css or global.css */
+/* For simplicity, copying relevant parts here, ideally these are global components/styles */
+.themeSwitchWrapper {
+  display: flex;
+  align-items: center;
+}
+.themeSwitch {
   position: relative;
   display: inline-block;
-  width: 50px; /* Adjusted size */
-  height: 28px; /* Adjusted size */
+  width: 48px;
+  height: 28px;
 }
+.themeSwitch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #bdc1c6; transition: .3s var(--animation-timing-function); }
+[data-theme="dark"] .slider { background-color: #5f6368; }
+.slider.round { border-radius: 28px; }
+.slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 3px; bottom: 3px; background-color: white; transition: .3s var(--animation-timing-function); border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+.themeSwitch input:checked + .slider { background-color: var(--primary-color); }
+.themeSwitch input:focus-visible + .slider { box-shadow: 0 0 0 3px var(--current-focus-ring-color); }
+.themeSwitch input:checked + .slider:before { transform: translateX(20px); }
 
-.switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
 
-.slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: var(--color-surface-variant);
-  transition: var(--animation-speed-fast);
-  border-radius: 28px; /* Fully rounded */
-}
-
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 20px; /* Adjusted size */
-  width: 20px; /* Adjusted size */
-  left: 4px;
-  bottom: 4px;
-  background-color: var(--color-on-primary); /* Handle color */
-  transition: var(--animation-speed-fast);
-  border-radius: 50%;
-  box-shadow: var(--shadow-1);
-}
-
-input:checked + .slider {
-  background-color: var(--color-primary);
-}
-
-input:focus + .slider {
-  box-shadow: 0 0 1px var(--color-primary);
-}
-
-input:checked + .slider:before {
-  transform: translateX(22px); /* Adjusted translation */
-}
-
-/* Radio Group */
 .radioGroup {
   display: flex;
-  gap: var(--spacing-m);
+  gap: var(--spacing-s, 8px); /* Smaller gap for radio buttons */
 }
-.radioGroup label {
-  padding: var(--spacing-s) var(--spacing-m);
-  border-radius: var(--border-radius-full);
+.radioLabel {
+  padding: var(--spacing-s, 8px) var(--spacing-m, 16px);
+  border: 1.5px solid var(--current-outline-color);
+  border-radius: var(--border-radius-pill); /* Pill shape */
   cursor: pointer;
-  transition: background-color var(--animation-speed-fast);
-  position: relative;
-  overflow: hidden;
-  border: 1px solid var(--color-outline);
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-s, 8px);
+  font-size: 0.9em;
+  color: var(--current-on-surface-variant-color);
 }
-.radioGroup input[type="radio"] {
-  margin-right: var(--spacing-s);
-  accent-color: var(--color-primary); /* Modern way to style radio */
+.radioLabel input[type="radio"] {
   display: none; /* Hide native radio */
 }
-.radioGroup label:has(input:checked) { /* Style label when radio is checked */
-    background-color: var(--color-primary-container);
-    color: var(--color-on-primary-container);
-    border-color: var(--color-primary);
+.radioLabel.radioSelected {
+    background-color: var(--primary-color-light-focus); /* Use a light primary container */
+    border-color: var(--primary-color);
+    color: var(--primary-color); /* Text color when selected */
     font-weight: 500;
 }
-.radioGroup label:hover {
-    background-color: var(--color-surface-variant);
+[data-theme="dark"] .radioLabel.radioSelected {
+    background-color: var(--primary-color-dark-focus); /* Darker primary container */
+}
+.radioLabel:hover:not(.radioSelected) {
+    border-color: var(--current-on-surface-variant-color);
+}
+.radioLabel .material-symbols-outlined {
+    font-size: 1.2em;
 }
 
 
 .languageSelect {
-  min-width: 180px;
-  padding: var(--spacing-s) var(--spacing-m); /* Selects need different padding */
+  min-width: 200px;
+  padding: var(--spacing-s, 8px) var(--spacing-m, 16px);
+  border: 1.5px solid var(--current-outline-color);
+  border-radius: var(--border-radius-medium);
+  background-color: var(--current-surface-color); /* Match input fields */
+  color: var(--current-on-surface-color);
+  font-family: var(--font-family-text);
+  font-size: 0.95em;
+  cursor: pointer;
+}
+.languageSelect:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px var(--current-focus-ring-color);
 }

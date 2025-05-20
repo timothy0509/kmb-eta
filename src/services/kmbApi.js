@@ -1,31 +1,82 @@
+// src/services/kmbApi.js
+import { toTitleCase } from '../utils/textFormat'; // Assuming textFormat.js is in src/utils/
+
 const API_BASE_URL = "https://data.etabus.gov.hk/v1/transport/kmb";
 
-// Helper to process ETA data from API
+async function fetchData(url) {
+  // console.log(`Fetching data from: ${url}`); // Uncomment for debugging
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      const errorBody = await response.text().catch(() => "Could not read error body");
+      console.error(`HTTP error! Status: ${response.status}, URL: ${url}, Body: ${errorBody}`);
+      throw new Error(`API Error ${response.status} for ${url}.`);
+    }
+    const data = await response.json();
+    // console.log(`Successfully fetched data from: ${url}`); // Uncomment for debugging
+    return data;
+  } catch (error) {
+      console.error(`Fetch error for URL ${url}:`, error);
+      throw error;
+  }
+}
+
+// Processes individual stop entries from /stop API
+function processStopEntry(entry) {
+  return {
+    ...entry,
+    name_en: toTitleCase(entry.name_en),
+    // name_tc and name_sc are usually already in their correct form
+  };
+}
+
+// Processes individual ETA entries from /stop-eta or /route-eta
+function processEtaEntry(entry) {
+  return {
+    ...entry,
+    dest_en: toTitleCase(entry.dest_en),
+    // Remarks (rmk_en, rmk_tc, rmk_sc) are generally left as is from API
+  };
+}
+
+export const fetchStopList = async () => {
+  const data = await fetchData(`${API_BASE_URL}/stop`);
+  if (!data || !Array.isArray(data.data)) {
+      console.error("No data received from /stop API or data.data is not an array");
+      throw new Error("Failed to fetch stop list: Invalid API response.");
+  }
+  return data.data.map(processStopEntry); // Apply title case to stop names
+};
+
+// Processes raw ETA data from API for a single stop
 // Groups ETAs by route, direction, destination, and service_type
 // Then picks the first service_type with valid ETAs for each group
 // And limits to 3 ETAs
 const processRawEtaData = (rawData) => {
-  if (!rawData || !rawData.data || rawData.data.length === 0) {
+  if (!rawData || !Array.isArray(rawData.data)) {
     return [];
   }
 
-  const groupedByRouteDest = rawData.data.reduce((acc, etaEntry) => {
-    const key = `${etaEntry.route}-${etaEntry.dir}-${etaEntry.dest_en || etaEntry.dest_tc}`;
+  const processedApiData = rawData.data.map(processEtaEntry); // Title case dest_en here
+
+  const groupedByRouteDestService = processedApiData.reduce((acc, etaEntry) => {
+    // Using a more stable key that includes service_type initially for grouping
+    const key = `${etaEntry.route}-${etaEntry.dir}-${toTitleCase(etaEntry.dest_en)}-${etaEntry.dest_tc}-${etaEntry.service_type}`;
     if (!acc[key]) {
       acc[key] = {
         route: etaEntry.route,
-        dir: etaEntry.dir,
-        dest_en: etaEntry.dest_en,
+        dir: etaEntry.dir, // 'I' or 'O'
+        service_type: etaEntry.service_type,
+        dest_en: toTitleCase(etaEntry.dest_en), // Ensure consistent casing
         dest_tc: etaEntry.dest_tc,
         dest_sc: etaEntry.dest_sc,
-        seq: etaEntry.seq, // Keep the stop sequence for this route at this stop
-        service_types: {},
+        seq: etaEntry.seq, // Stop sequence on this route
+        // Store original stop ID if needed for platform identification later, though MainPage handles platform grouping
+        stop: etaEntry.stop,
+        arrivals: [], // To store individual arrival times { eta, eta_seq, rmk_en, rmk_tc, rmk_sc }
       };
     }
-    if (!acc[key].service_types[etaEntry.service_type]) {
-      acc[key].service_types[etaEntry.service_type] = [];
-    }
-    acc[key].service_types[etaEntry.service_type].push({
+    acc[key].arrivals.push({
       eta: etaEntry.eta,
       eta_seq: etaEntry.eta_seq,
       rmk_en: etaEntry.rmk_en,
@@ -35,145 +86,103 @@ const processRawEtaData = (rawData) => {
     return acc;
   }, {});
 
-  const processedEtas = Object.values(groupedByRouteDest).map(group => {
-    let chosenServiceTypeEtas = [];
-    // Iterate service types (e.g., '1', '2') and pick the first one with ETAs
-    const serviceTypeKeys = Object.keys(group.service_types).sort();
 
-    for (const stKey of serviceTypeKeys) {
-      const etasForServiceType = group.service_types[stKey]
-        .filter(e => e.eta) // Only consider entries with an ETA timestamp
-        .sort((a, b) => new Date(a.eta) - new Date(b.eta)) // Sort by ETA time
-        .slice(0, 3); // Take up to 3
+  // Now, consolidate by route & destination, picking the best service_type
+  const finalGroupedEtas = {};
+  Object.values(groupedByRouteDestService).forEach(group => {
+    const routeDestKey = `${group.route}-${group.dir}-${group.dest_en}-${group.dest_tc}`;
+    if (!finalGroupedEtas[routeDestKey] ||
+        (finalGroupedEtas[routeDestKey].arrivals.length === 0 && group.arrivals.length > 0) ||
+        (group.arrivals.some(a => a.eta) && !finalGroupedEtas[routeDestKey].arrivals.some(a => a.eta)) // Prefer service type with timed ETAs
+    ) {
+        // Sort arrivals within this service_type group by eta_seq then by time
+        group.arrivals.sort((a, b) => {
+            if (a.eta_seq !== b.eta_seq) return (a.eta_seq || Infinity) - (b.eta_seq || Infinity);
+            return new Date(a.eta) - new Date(b.eta);
+        });
 
-      if (etasForServiceType.length > 0) {
-        chosenServiceTypeEtas = etasForServiceType;
-        break; // Found ETAs for this service type, use them
-      }
+        finalGroupedEtas[routeDestKey] = {
+            route: group.route,
+            dir: group.dir,
+            dest_en: group.dest_en,
+            dest_tc: group.dest_tc,
+            dest_sc: group.dest_sc,
+            seq: group.seq,
+            stop: group.stop, // Keep original stop ID for reference
+            // 'etas' will be the final list of up to 3 arrivals for display
+            // If no timed ETAs, take the first remark-only entry.
+            etas: group.arrivals.filter(a => a.eta).slice(0, 3).length > 0
+                  ? group.arrivals.filter(a => a.eta).slice(0, 3)
+                  : group.arrivals.filter(a => a.rmk_en || a.rmk_tc || a.rmk_sc).slice(0,1),
+            // Keep a general remark if all arrivals are remark-only or if the first timed ETA has no specific remark
+            // This logic might need refinement based on desired remark display hierarchy
+            rmk_en: group.arrivals[0]?.rmk_en,
+            rmk_tc: group.arrivals[0]?.rmk_tc,
+            rmk_sc: group.arrivals[0]?.rmk_sc,
+        };
     }
-    
-    // If no timed ETAs, check for remarks-only entries (e.g. "No service")
-    if (chosenServiceTypeEtas.length === 0) {
-        for (const stKey of serviceTypeKeys) {
-            const remarksOnlyEtas = group.service_types[stKey]
-                .filter(e => !e.eta && (e.rmk_en || e.rmk_tc || e.rmk_sc))
-                .slice(0,1); // Take one remark if available
-            if (remarksOnlyEtas.length > 0) {
-                chosenServiceTypeEtas = remarksOnlyEtas;
-                break;
-            }
-        }
-    }
-
-
-    return {
-      ...group,
-      etas: chosenServiceTypeEtas, // This now contains up to 3 ETAs from the chosen service type
-    };
-  }).filter(group => group.etas.length > 0); // Only keep routes that have some ETA or remark
-
-  // Sort routes based on problem description
-  // 1. Letter Prefix (A-Z, no prefix first).
-  // 2. Length of the main numeric part of the route (shorter first).
-  // 3. The main numeric part itself (lexicographical).
-  // 4. Suffix (A-Z).
-  // 5. Routes with only remarks (no timed ETAs) are pushed to the bottom.
-  const parseRouteDetails = (routeStr) => {
-    const match = routeStr.match(/^([A-Z]*)(\d+)([A-Z]*)$/i);
-    if (match) {
-      return { prefix: match[1].toUpperCase(), numStr: match[2], numVal: parseInt(match[2],10), suffix: match[3].toUpperCase() };
-    }
-    // Fallback for routes like 'N11', 'X42P'
-    const prefixMatch = routeStr.match(/^([A-Z]+)/i);
-    const suffixMatch = routeStr.match(/([A-Z]+)$/i);
-    const numOnlyMatch = routeStr.match(/(\d+)/);
-
-    let prefix = prefixMatch ? prefixMatch[1].toUpperCase() : "";
-    let numStr = numOnlyMatch ? numOnlyMatch[1] : routeStr.replace(prefix, "").replace(suffixMatch ? suffixMatch[1].toUpperCase() : "", "");
-    let suffix = suffixMatch && suffixMatch.index > (prefixMatch ? prefixMatch[0].length-1 : -1) && suffixMatch.index > (numOnlyMatch ? numOnlyMatch.index + numOnlyMatch[0].length -1 : -1) ? suffixMatch[1].toUpperCase() : "";
-    if (prefix && numStr === routeStr.replace(prefix,"")) numStr = routeStr.replace(prefix,"").replace(suffix,"");
-
-
-    return { prefix, numStr, numVal: parseInt(numStr, 10) || Infinity, suffix };
-  };
-
-  processedEtas.sort((a, b) => {
-    const aDetails = parseRouteDetails(a.route);
-    const bDetails = parseRouteDetails(b.route);
-
-    const aHasTimedEta = a.etas.some(e => e.eta);
-    const bHasTimedEta = b.etas.some(e => e.eta);
-
-    if (aHasTimedEta && !bHasTimedEta) return -1;
-    if (!aHasTimedEta && bHasTimedEta) return 1;
-
-    if (aDetails.prefix && !bDetails.prefix) return -1;
-    if (!aDetails.prefix && bDetails.prefix) return 1;
-    if (aDetails.prefix < bDetails.prefix) return -1;
-    if (aDetails.prefix > bDetails.prefix) return 1;
-    
-    if (aDetails.numStr.length < bDetails.numStr.length) return -1;
-    if (aDetails.numStr.length > bDetails.numStr.length) return 1;
-    
-    if (aDetails.numStr < bDetails.numStr) return -1;
-    if (aDetails.numStr > bDetails.numStr) return 1;
-
-    if (aDetails.suffix < bDetails.suffix) return -1;
-    if (aDetails.suffix > bDetails.suffix) return 1;
-    
-    return 0;
   });
 
 
-  return processedEtas;
-};
+  const resultList = Object.values(finalGroupedEtas).filter(group => group.etas.length > 0);
 
+  // Sort routes (from your vanilla JS logic, adapted)
+  const parseRouteForSorting = (routeStr) => {
+    if (!routeStr) return { prefix: '', mainNumStr: '', mainNumLen: 0, suffix: '', original: '' };
+    const upperRoute = routeStr.toUpperCase();
+    // More robust regex to capture prefix, number, and suffix
+    const match = upperRoute.match(/^([A-Z]*)(\d+)([A-Z]*)$/i) || upperRoute.match(/^([A-Z]+)(\d*)$/i) || upperRoute.match(/^(\d+)([A-Z]*)$/i);
+    let prefix = '', mainNumStr = '', suffix = '';
 
-export const fetchStopList = async () => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/stop`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    if (match && match[1] && !isNaN(parseInt(match[1]))) { // Starts with number
+        mainNumStr = match[1];
+        suffix = match[2] || '';
+    } else if (match) {
+        prefix = match[1] || '';
+        mainNumStr = match[2] || '';
+        suffix = match[3] || '';
+    } else { // Fallback if no clear numeric part (e.g., special routes)
+        prefix = upperRoute;
     }
-    const data = await response.json();
-    // console.log("Raw Stop List:", data.data.slice(0,5));
-    return data.data; // Assuming data is an array of stop objects
-  } catch (error) {
-    console.error("Failed to fetch stop list:", error);
-    throw error; // Re-throw to be caught by caller
-  }
+    return { prefix, mainNumStr, mainNumLen: mainNumStr.length, suffix, original: routeStr };
+  };
+
+
+  resultList.sort((groupA, groupB) => {
+    const routeA = parseRouteForSorting(groupA.route);
+    const routeB = parseRouteForSorting(groupB.route);
+
+    const hasTimedEtasA = groupA.etas.some(e => e.eta);
+    const hasTimedEtasB = groupB.etas.some(e => e.eta);
+
+    if (hasTimedEtasA && !hasTimedEtasB) return -1;
+    if (!hasTimedEtasA && hasTimedEtasB) return 1;
+
+    if (routeA.prefix < routeB.prefix) return -1; if (routeA.prefix > routeB.prefix) return 1;
+    if (routeA.mainNumLen < routeB.mainNumLen) return -1; if (routeA.mainNumLen > routeB.mainNumLen) return 1;
+    if (routeA.mainNumStr < routeB.mainNumStr) return -1; if (routeA.mainNumStr > routeB.mainNumStr) return 1;
+    if (routeA.suffix < routeB.suffix) return -1; if (routeA.suffix > routeB.suffix) return 1;
+    return 0;
+  });
+
+  return resultList;
 };
+
 
 export const fetchStopEta = async (stopId) => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/stop-eta/${stopId}`);
-    if (!response.ok) {
-      // KMB API returns 422 for invalid stop ID, but might also be other errors
-      const errorBody = await response.json().catch(() => ({ message: "Unknown API error" }));
-      console.error(`HTTP error! status: ${response.status}`, errorBody);
-      throw new Error(errorBody.message || `Failed to fetch ETA for stop ${stopId}`);
-    }
-    const rawData = await response.json();
-    // console.log(`Raw ETA for ${stopId}:`, rawData);
-    return processRawEtaData(rawData);
-  } catch (error) {
-    console.error(`Failed to fetch ETA for stop ${stopId}:`, error);
-    throw error;
-  }
+  const data = await fetchData(`${API_BASE_URL}/stop-eta/${stopId}`);
+  return processRawEtaData(data); // processRawEtaData now handles title casing internally
 };
 
 // Placeholder for Pak Hung House Stop IDs - REPLACE WITH ACTUAL 16-CHAR KMB IDs
 export const PAK_HUNG_HOUSE_STOP_GROUPS = {
   EASTBOUND: [
-    { kmb_id: "942E95B4336BDFA7", platform_code: "Wt230", name: "Pak Hung House (Eastbound)" },
-    { kmb_id: "29740CCBBD82FC33", platform_code: "Wt231", name: "Pak Hung House (Eastbound)" },
-    { kmb_id: "9A16E73DC0B9AF6C", platform_code: "Wt232", name: "Pak Hung House (Eastbound)" },
+    { kmb_id: "PLACEHOLDER_ID_WT230", platform_code: "Wt230", name: "Pak Hung House (Eastbound)" },
+    { kmb_id: "PLACEHOLDER_ID_WT231", platform_code: "Wt231", name: "Pak Hung House (Eastbound)" },
+    { kmb_id: "PLACEHOLDER_ID_WT232", platform_code: "Wt232", name: "Pak Hung House (Eastbound)" },
   ],
   WESTBOUND: [
-    { kmb_id: "58611212645F0AB1", platform_code: "Wt614", name: "Pak Hung House (Westbound)" },
-    { kmb_id: "3BA9C90738A8600D", platform_code: "Wt615", name: "Pak Hung House (Westbound)" },
+    { kmb_id: "PLACEHOLDER_ID_WT614", platform_code: "Wt614", name: "Pak Hung House (Westbound)" },
+    { kmb_id: "PLACEHOLDER_ID_WT615", platform_code: "Wt615", name: "Pak Hung House (Westbound)" },
   ],
 };
-// Example (You need to find these for Pak Hung House):
-// Sau Mau Ping (Central) Stop ID: A3ADFCDF8487ADB9 (from API docs)
-// Laguna City Stop ID: A60AE774B09A5E44 (from API docs)

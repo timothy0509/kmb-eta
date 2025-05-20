@@ -1,69 +1,79 @@
 import { useState, useEffect } from "react";
-import { useSettings } from "../contexts/SettingsContext"; // Import useSettings
+import { useSettings } from "../contexts/SettingsContext";
 
-const calculateRemainingTime = (etaTimestamp, language) => {
-  if (!etaTimestamp) return { text: "N/A", exact: "N/A", isDue: false, isScheduled: false };
+const calculateRemainingTime = (etaTimestamp, language, remark) => { // Added remark here
+  const isScheduledBus = remark === "Scheduled Bus" || remark === "原定班次";
+
+  if (!etaTimestamp) {
+    return {
+      countdownText: "N/A",
+      exactTimeText: "N/A",
+      isDue: false,
+      isScheduled: isScheduledBus, // Still note if it's scheduled even with no ETA
+    };
+  }
 
   const now = new Date().getTime();
   const etaDate = new Date(etaTimestamp);
   const etaTime = etaDate.getTime();
   const diff = etaTime - now;
 
-  const options = { hour: '2-digit', minute: '2-digit', hour12: false };
   let exactTimeStr = "N/A";
   try {
-    // Attempt to format, catch errors for invalid dates from API
-    exactTimeStr = new Intl.DateTimeFormat(language === 'en' ? 'en-GB' : language === 'tc' ? 'zh-HK' : 'zh-CN', options).format(etaDate);
+    const hours = etaDate.getHours().toString().padStart(2, '0');
+    const minutes = etaDate.getMinutes().toString().padStart(2, '0');
+    const seconds = etaDate.getSeconds().toString().padStart(2, '0');
+    exactTimeStr = `${hours}:${minutes}:${seconds}`;
   } catch (e) {
     console.warn("Invalid date for exact time formatting:", etaTimestamp);
   }
 
-
   if (diff <= 0) {
-    return { text: "Due", exact: exactTimeStr, isDue: true, isScheduled: false };
+    return {
+      countdownText: diff < -30000 ? "Departed" : "Due", // 30 seconds threshold
+      exactTimeText: exactTimeStr,
+      isDue: true,
+      isScheduled: isScheduledBus,
+    };
   }
 
-  const minutes = Math.floor(diff / (1000 * 60));
-  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+  const totalSeconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
 
   return {
-    text: `${minutes} min ${seconds < 10 ? "0" : ""}${seconds} sec`,
-    exact: exactTimeStr,
+    countdownText: `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`, // mm:ss
+    exactTimeText: exactTimeStr, // HH:mm:ss
     isDue: false,
-    isScheduled: false,
+    isScheduled: isScheduledBus,
   };
 };
 
 export const useCountdown = (etaTimestamp, remark) => {
-  const { language } = useSettings(); // Get language from settings
+  const { language } = useSettings();
   const [remainingTime, setRemainingTime] = useState(
-    calculateRemainingTime(etaTimestamp, language) // Pass language
+    calculateRemainingTime(etaTimestamp, language, remark) // Pass remark
   );
 
   useEffect(() => {
-    if (!etaTimestamp || remainingTime.isDue) {
-      let initialCalc = calculateRemainingTime(etaTimestamp, language);
-      if (remark && remark.toLowerCase().includes("scheduled")) {
-        initialCalc.isScheduled = true;
-      }
-      setRemainingTime(initialCalc);
-      return;
+    // Pass remark to calculateRemainingTime
+    const initialCalc = calculateRemainingTime(etaTimestamp, language, remark);
+    setRemainingTime(initialCalc);
+
+    if (!etaTimestamp || initialCalc.isDue) {
+      return; // No interval needed if no ETA or already due
     }
 
     const intervalId = setInterval(() => {
-      let newCalc = calculateRemainingTime(etaTimestamp, language);
-      if (remark && remark.toLowerCase().includes("scheduled")) {
-        newCalc.isScheduled = true;
-      }
+      const newCalc = calculateRemainingTime(etaTimestamp, language, remark);
       setRemainingTime(newCalc);
-
       if (newCalc.isDue) {
         clearInterval(intervalId);
       }
     }, 1000);
 
     return () => clearInterval(intervalId);
-  }, [etaTimestamp, remark, remainingTime.isDue, language]); // Add language
+  }, [etaTimestamp, remark, language]); // Add remark and language to dependencies
 
   return remainingTime;
 };

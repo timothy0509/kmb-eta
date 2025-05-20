@@ -1,67 +1,307 @@
-.mainPage h1 {
-  text-align: center;
-  margin-bottom: var(--spacing-l);
-}
+/* src/pages/MainPage.module.css */
+/* Mimicking styles from your style.css for the main page layout */
 
-.searchForm {
+.headerControls {
   display: flex;
-  flex-direction: column;
-  gap: var(--spacing-m);
-  margin-bottom: var(--spacing-l);
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid var(--current-outline-color);
+  transition: border-color var(--animation-duration);
 }
 
-.formGroup {
+.headerControls h1 {
+  font-family: var(--font-family-display);
+  text-align: left;
+  color: var(--kmb-red);
+  margin-bottom: 0;
+  font-weight: 700;
+  font-size: 2.2em; /* From your CSS */
+  letter-spacing: -0.5px;
+  flex-grow: 1;
+}
+
+.toggleContainer {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 20px; /* Space between toggles */
 }
 
-.formGroup label {
-  margin-bottom: var(--spacing-xs);
+.themeSwitchWrapper {
+  display: flex;
+  align-items: center;
+}
+
+.themeLabel {
+  font-family: var(--font-family-sans);
+  margin-left: 12px;
+  font-size: 0.9em;
+  color: var(--current-on-surface-variant-color);
+  transition: color var(--animation-duration);
   font-weight: 500;
-  color: var(--color-text-secondary);
 }
-.formActions {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: var(--spacing-m);
+
+.themeSwitch {
+  position: relative;
+  display: inline-block;
+  width: 48px; /* From your CSS */
+  height: 28px; /* From your CSS */
 }
-.checkboxGroup {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-s);
+
+.themeSwitch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
 }
-.checkboxGroup label {
-    margin-bottom: 0;
-    font-weight: normal;
-    color: var(--color-text);
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #bdc1c6; /* Light mode default from your CSS */
+  transition: .3s var(--animation-timing-function);
+}
+[data-theme="dark"] .slider {
+  background-color: #5f6368; /* Dark mode default from your CSS */
+}
+
+.slider.round {
+  border-radius: 28px; /* From your CSS */
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 22px; /* From your CSS */
+  width: 22px; /* From your CSS */
+  left: 3px; /* From your CSS */
+  bottom: 3px; /* From your CSS */
+  background-color: white;
+  transition: .3s var(--animation-timing-function);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+.slider.round:before {
+  border-radius: 50%;
+}
+
+.themeSwitch input:checked + .slider {
+  background-color: var(--primary-color); /* From your CSS */
+}
+
+.themeSwitch input:focus-visible + .slider { /* Using focus-visible for better accessibility */
+  box-shadow: 0 0 0 3px var(--current-focus-ring-color);
+}
+
+.themeSwitch input:checked + .slider:before {
+  transform: translateX(20px); /* From your CSS */
+}
+
+.settingsPageButton {
+  background: none;
+  border: none;
+  color: var(--current-on-surface-variant-color);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+}
+.settingsPageButton:hover {
+  background-color: var(--current-table-row-hover); /* Use a subtle hover */
+}
+.settingsPageButton .material-symbols-outlined {
+  font-size: 26px;
 }
 
 
-.error, .errorCard {
-  color: var(--color-error);
-  background-color: rgba(217, 48, 37, 0.1);
-  padding: var(--spacing-s);
-  border-radius: var(--border-radius);
-  margin-bottom: var(--spacing-m);
-  text-align: center;
+.controlsForm { /* Was .controls in your CSS */
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px; /* From your CSS */
+  margin-bottom: 35px; /* From your CSS */
+  align-items: flex-end; /* From your CSS */
 }
-.errorCard {
-    text-align: left;
+
+.inputGroup { /* Was .controls > div in your CSS */
+  flex: 1 1 220px; /* From your CSS */
 }
-.errorCard h3 {
-    color: var(--color-error);
+
+.controlsForm label { /* Was .controls label */
+  font-family: var(--font-family-text);
+  display: block;
+  margin-bottom: 10px;
+  font-weight: 500;
+  color: var(--current-on-surface-variant-color);
+  font-size: 0.875em;
+}
+
+.controlsForm input[type="text"] { /* Was .controls input[type="text"] */
+  font-family: var(--font-family-text);
+  width: 100%;
+  padding: 14px 18px;
+  border: 1.5px solid var(--current-outline-color);
+  background-color: var(--current-surface-color); /* Match body or card bg */
+  color: var(--current-on-surface-color);
+  border-radius: var(--border-radius-medium);
+  font-size: 1em;
+  transition: border-color var(--animation-duration), box-shadow var(--animation-duration), background-color var(--animation-duration), color var(--animation-duration);
+}
+.controlsForm input[type="text"]:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3.5px var(--current-focus-ring-color);
+}
+.controlsForm input[type="text"]::placeholder {
+    color: var(--current-on-surface-variant-color);
+    opacity: 0.7;
 }
 
 
-.resultsArea {
-  margin-top: var(--spacing-l);
+.groupingControl { /* Was .grouping-control in your CSS */
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 12px; /* Align with button baseline */
+  flex-basis: auto !important;
+  flex-grow: 0 !important;
 }
-.groupContainer h2 {
-    font-size: var(--font-size-large);
-    color: var(--color-primary-dark);
-    margin-top: var(--spacing-l);
-    margin-bottom: var(--spacing-s);
-    padding-bottom: var(--spacing-xs);
-    border-bottom: 1px solid var(--color-border);
+.groupingControl input[type="checkbox"] {
+  width: 20px; /* From your CSS */
+  height: 20px; /* From your CSS */
+  accent-color: var(--primary-color); /* Modern way to style checkbox */
+  cursor: pointer;
+  margin-top: 2px; /* Align with label */
+}
+.groupingControl label {
+  font-family: var(--font-family-text);
+  margin-bottom: 0;
+  font-weight: 400;
+  color: var(--current-on-surface-color);
+  font-size: 0.95em;
+  cursor: pointer;
+}
+
+/* Search button - was #search-button */
+.controlsForm button[type="submit"] {
+  font-family: var(--font-family-sans);
+  padding: 14px 30px;
+  background-color: var(--primary-color);
+  color: white; /* Explicitly white for primary button */
+  border: none;
+  border-radius: var(--border-radius-pill);
+  cursor: pointer;
+  font-size: 1em;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  transition: background-color var(--animation-duration), transform 0.15s var(--animation-timing-function), box-shadow var(--animation-duration);
+  box-shadow: 0 3px 6px var(--current-shadow-color-strong);
+  flex-grow: 0;
+  flex-basis: auto;
+}
+.controlsForm button[type="submit"]:hover {
+  background-color: var(--primary-color-dark-hover);
+  box-shadow: 0 5px 10px var(--current-shadow-color-strong);
+  transform: translateY(-2px);
+}
+.controlsForm button[type="submit"]:active {
+  transform: translateY(1px) scale(0.98);
+  box-shadow: 0 1px 3px var(--current-shadow-color);
+}
+.controlsForm button[type="submit"]:disabled {
+    background-color: var(--current-outline-color);
+    color: var(--current-on-surface-variant-color);
+    opacity: 0.7;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+
+.statusMessages { /* Was #status-messages */
+  font-family: var(--font-family-text);
+  margin-bottom: 25px;
+  padding: 14px 18px;
+  border-radius: var(--border-radius-medium);
+  border: 1px solid;
+  font-size: 0.95em;
+  font-weight: 500;
+  opacity: 0;
+  transform: translateY(-15px) scale(0.98);
+  transition: opacity var(--animation-duration) var(--animation-timing-function), transform var(--animation-duration) var(--animation-timing-function), background-color var(--animation-duration), border-color var(--animation-duration), color var(--animation-duration);
+  display: none; /* Initially hidden, controlled by JS state */
+}
+.statusMessages.statusVisible { /* Class to make it visible */
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  display: block;
+}
+.statusMessages.status-loading { background-color: var(--current-status-info-bg); border-color: var(--current-status-info-border); color: var(--current-status-info-text); }
+.statusMessages.status-error   { background-color: var(--current-status-error-bg); border-color: var(--current-status-error-border); color: var(--current-status-error-text); }
+.statusMessages.status-info    { background-color: var(--current-status-success-bg); border-color: var(--current-status-success-border); color: var(--current-status-success-text); } /* Your 'info' was green */
+
+
+.etaResultsArea { /* Was #eta-results-area */
+  /* No specific styles here, individual tables will be styled */
+}
+.groupTitle { /* For smart grouping titles */
+  font-family: var(--font-family-sans);
+  margin-top: 30px;
+  margin-bottom: 15px;
+  color: var(--current-on-surface-color);
+  font-weight: 500;
+  font-size: 1.6em;
+  border-bottom: 1.5px solid var(--current-outline-color);
+  padding-bottom: 10px;
+}
+
+
+.legend { /* Was #legend */
+  font-family: var(--font-family-text);
+  margin-top: 35px;
+  padding: 20px;
+  background-color: var(--current-legend-bg);
+  border: 1px solid var(--current-outline-color);
+  border-radius: var(--border-radius-medium);
+  font-size: 0.9em;
+  transition: background-color var(--animation-duration), border-color var(--animation-duration);
+  box-shadow: 0 2px 6px var(--current-shadow-color);
+}
+.legend p {
+  margin: 6px 0;
+  color: var(--current-on-surface-variant-color);
+  transition: color var(--animation-duration);
+}
+.legend strong {
+  font-family: var(--font-family-sans);
+  color: var(--current-on-surface-color);
+  transition: color var(--animation-duration);
+  font-weight: 500;
+}
+.scheduledEtaLegend { /* For the "Grey Text / Italic" part */
+  color: var(--current-on-surface-variant-color); /* Match scheduled ETA style */
+  font-style: italic;
+  opacity: 0.8; /* Match scheduled ETA style */
+}
+
+/* Responsive styles from your CSS */
+@media (max-width: 768px) {
+  .headerControls { flex-direction: column; align-items: flex-start; gap: 15px; }
+  .headerControls h1 { font-size: 1.8em; }
+  .toggleContainer { width: 100%; justify-content: space-around; margin-top: 10px; }
+  .controlsForm { gap: 18px; margin-bottom: 30px; }
+  .inputGroup { flex-basis: 100%; }
+  .controlsForm button[type="submit"] { width: 100%; padding: 15px; }
+  .groupingControl { padding-bottom: 0; justify-content: flex-start; }
+}
+@media (max-width: 480px) {
+  .headerControls h1 { font-size: 1.6em; }
+  .controlsForm input[type="text"], .controlsForm button[type="submit"] { font-size: 0.95em; padding: 12px 15px; }
+  .groupTitle { font-size: 1.3em; }
 }

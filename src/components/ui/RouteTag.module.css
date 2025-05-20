@@ -1,10 +1,58 @@
-.routeTag {
+/* src/components/ui/RouteTag.module.css */
+.routeTagSpan {
+  font-family: "Google Sans", Arial, sans-serif;
   display: inline-block;
-  padding: 3px 8px;
-  border-radius: 4px;
-  font-weight: bold;
-  font-size: var(--font-size-small);
+  padding: 5px 10px;
+  border-radius: var(--border-radius-small);
+  font-weight: 700;
+  line-height: 1.2;
   text-align: center;
-  min-width: 40px; /* Ensure some width */
-  box-sizing: border-box;
+  min-width: 50px;
+  box-shadow: 0 1px 2px var(--current-shadow-color);
+  vertical-align: middle;
+  font-size: var(--route-tag-base-font-size, 0.875em);
+  white-space: nowrap;
+  transition: background-color var(--animation-duration), color var(--animation-duration), box-shadow var(--animation-duration);
+}
+
+/* Default/Normal Route */
+.routeNormal {
+  background-color: var(--route-normal-bg);
+  color: var(--route-normal-text);
+}
+
+/* N-Routes */
+.routeN {
+  background-color: var(--route-black-bg);
+  color: var(--route-white-text); /* Explicitly white */
+}
+
+/* 1xx, 3xx, 6xx Routes */
+.route136xx {
+  background-color: var(--route-red-bg);
+  color: var(--route-white-text); /* Explicitly white */
+}
+
+/* 9xx Routes */
+.route9xx {
+  background-color: var(--route-green-bg);
+  color: var(--route-white-text); /* Explicitly white */
+}
+
+/* A-Routes */
+.routeA {
+  background-color: var(--route-dark-blue-bg);
+  color: var(--route-yellow-text); /* Explicitly yellow */
+}
+
+/* E/S-Routes */
+.routeES {
+  background-color: var(--route-orange-bg);
+  color: var(--route-white-text); /* Explicitly white */
+}
+
+/* P-Routes */
+.routeP {
+  background-color: var(--route-rose-gold-bg);
+  color: var(--route-white-text); /* Explicitly white */
 }

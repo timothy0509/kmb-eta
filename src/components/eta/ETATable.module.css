@@ -1,61 +1,120 @@
-.etaTableCard {
-  margin-bottom: var(--spacing-l);
+/* src/components/eta/ETATable.module.css */
+.etaTableContainer {
+  margin-bottom: 35px;
+  background-color: var(--current-surface-color);
+  border-radius: var(--border-radius-medium);
+  box-shadow: 0 3px 10px var(--current-shadow-color);
+  padding: 25px;
+  transition: background-color var(--animation-duration), box-shadow var(--animation-duration);
 }
 
-.etaTableCard h3 {
-  margin-bottom: var(--spacing-s);
-  color: var(--color-primary);
-}
-
-.tableWrapper {
-  overflow-x: auto; /* Allow horizontal scrolling on small screens */
+.tableScrollWrapper {
+  overflow-x: auto;
   width: 100%;
 }
 
-.etaTable {
+.etaResultsTable {
+  font-family: var(--font-family-text);
   width: 100%;
-  min-width: 700px; /* Ensure table has a minimum width before scrolling */
-  border-collapse: collapse;
-  font-size: var(--font-size-small);
+  min-width: 750px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.9em;
 }
 
-.etaTable th,
-.etaTable td {
-  padding: var(--spacing-s);
+.etaResultsTable th,
+.etaResultsTable td {
+  padding: 12px 15px;
   text-align: left;
-  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+  border-bottom: 1px solid var(--current-outline-color);
+  transition: border-color var(--animation-duration), background-color 0.15s;
+  color: var(--current-on-surface-color);
+  vertical-align: middle;
 }
 
-.etaTable th {
-  background-color: var(--color-background);
-  font-weight: bold;
-  color: var(--color-text-secondary);
+.etaResultsTable th {
+  font-family: var(--font-family-sans);
+  font-weight: 700;
+  color: var(--current-on-surface-variant-color);
+  text-transform: uppercase;
+  font-size: 0.8em;
+  letter-spacing: 0.8px;
+  border-bottom-width: 2px;
+  transition: color var(--animation-duration);
 }
 
-.etaTable tbody tr:last-child td {
+.etaResultsTable tr:last-child td {
   border-bottom: none;
 }
 
-.etaTable tbody tr:hover {
-  background-color: var(--color-background);
+.etaResultsTable tbody tr:hover td {
+  background-color: var(--current-table-row-hover);
 }
 
-.remarks {
+.destinationCell {
+    min-width: 150px;
+    max-width: 280px; /* Allow more space for destination */
+    white-space: normal; /* Allow destination to wrap */
+    word-break: break-word;
+}
+
+.remarksCell {
+  white-space: normal;
+  min-width: 200px;
+  font-size: 0.9em;
+}
+.remarkEntry {
+  margin: 0 0 4px 0;
+  padding: 0;
+  line-height: 1.4;
+}
+.remarkSymbol {
+  font-weight: bold;
+  margin-right: 5px;
+  color: var(--primary-color);
+}
+
+.remarkOnlyRowFull td {
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}
+.fullWidthRemarkText {
   font-style: italic;
-  color: var(--color-text-secondary);
-  max-width: 200px; /* Limit remarks width */
-  white-space: normal; /* Allow wrapping */
+  color: var(--current-on-surface-variant-color);
+  text-align: left !important;
+  padding-left: 10px !important;
+  white-space: normal;
 }
 
+.errorRow td {
+  color: var(--current-status-error-text);
+  background-color: var(--current-status-error-bg);
+  font-style: italic;
+  /* text-align: center !important; */ /* Let it align with other cells */
+  padding: 10px;
+}
+
+/* Responsive styles */
 @media (max-width: 768px) {
-  /* .etaTable is now inside .tableWrapper, so no need for display:block here */
-  .etaTable th, .etaTable td {
-    white-space: nowrap;
-    font-size: 0.8rem;
-    padding: var(--spacing-xs) var(--spacing-s);
+  .etaResultsTable {
+    font-size: 0.875em;
   }
-  .remarks {
-    max-width: 150px;
-    white-space: normal; /* Allow remarks to wrap */
+  .etaResultsTable th,
+  .etaResultsTable td {
+    padding: 10px 8px;
+  }
+  .destinationCell {
+    min-width: 120px;
+    max-width: 200px;
+  }
+  .remarksCell {
+    min-width: 150px;
+  }
+}
+@media (max-width: 480px) {
+  .etaTableContainer { padding: 15px; }
+  .etaResultsTable {
+    font-size: 0.825em;
   }
 }

@@ -1,12 +1,11 @@
 import React from "react";
-import Header from "./Header";
-import Footer from "./Footer";
+import Footer from "./Footer"; // Assuming you still want the footer
 
 const Layout = ({ children }) => {
   return (
     <>
-      <Header />
-      <main className="container">{children}</main>
+      {/* The main content will be wrapped by .app-container inside MainPage or App.jsx */}
+      {children}
       <Footer />
     </>
   );
