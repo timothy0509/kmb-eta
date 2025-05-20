@@ -1,0 +1,234 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+/* Global styles */
+:root {
+  --primary-color: #4285f4; /* Google Blue */
+  --text-color: #202124; /* Dark grey for light mode */
+  --background-color: #ffffff; /* White for light mode */
+  --card-background: #f1f3f4; /* Light grey for light mode cards */
+  --border-color: #dadce0; /* Light grey border */
+  --shadow-color: rgba(0, 0, 0, 0.1);
+  --due-color: #dc143c; /* Crimson red for Due */
+  --scheduled-color: #808080; /* Grey for Scheduled Bus */
+}
+
+body {
+  font-family: 'Roboto', sans-serif; /* Using a common font */
+  margin: 0;
+  padding: 0;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Dark mode styles */
+body.dark-mode {
+  --text-color: #e8eaed; /* Light grey for dark mode */
+  --background-color: #202124; /* Dark grey for dark mode */
+  --card-background: #3c4043; /* Darker grey for dark mode cards */
+  --border-color: #5f6368; /* Dark grey border */
+  --shadow-color: rgba(255, 255, 255, 0.1);
+  --due-color: #ff6b6b; /* Lighter red for Due */
+  --scheduled-color: #a0a0a0; /* Lighter grey for Scheduled Bus */
+}
+
+.container {
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 0 15px;
+}
+
+h1, h2 {
+  color: var(--primary-color);
+}
+
+.card {
+  background-color: var(--card-background);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px var(--shadow-color);
+  border: 1px solid var(--border-color);
+}
+
+/* Form styles */
+.form-group {
+  margin-bottom: 15px;
+}
+
+label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+input[type="text"] {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  box-sizing: border-box; /* Include padding in width */
+}
+
+button {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.3s ease;
+}
+
+button:hover {
+  background-color: #357ae8; /* Slightly darker blue on hover */
+}
+
+button:disabled {
+  background-color: #a0c3ff; /* Lighter blue when disabled */
+  cursor: not-allowed;
+}
+
+/* Theme toggle */
+.theme-toggle {
+  position: fixed;
+  top: 15px;
+  right: 15px;
+  z-index: 1000; /* Ensure it's on top */
+}
+
+.theme-toggle button {
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+  padding: 8px 12px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+/* ETA Table styles */
+.eta-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+
+.eta-table th,
+.eta-table td {
+  padding: 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.eta-table th {
+  background-color: var(--card-background);
+  font-weight: bold;
+}
+
+/* Route tag styling */
+.route-tag {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: bold;
+  margin-right: 5px;
+}
+
+.route-tag.normal {
+  background-color: #e0e0e0; /* Light grey */
+  color: #202124; /* Dark grey */
+}
+
+.route-tag.n-route {
+  background-color: #202124; /* Black */
+  color: #ffffff; /* White */
+}
+
+.route-tag.route-1xx-3xx-6xx {
+  background-color: #d32f2f; /* Red */
+  color: #ffffff; /* White */
+}
+
+.route-tag.route-9xx {
+  background-color: #388e3c; /* Green */
+  color: #ffffff; /* White */
+}
+
+.route-tag.a-route {
+  background-color: #0d47a1; /* Dark blue */
+  color: #ffee58; /* Yellow */
+}
+
+.route-tag.e-s-route {
+  background-color: #f57c00; /* Orange */
+  color: #ffffff; /* White */
+}
+
+.route-tag.p-route {
+    background-color: #e57373; /* Rose gold (approx) */
+    color: #ffffff; /* White */
+}
+
+/* ETA countdown styling */
+.eta-countdown.due {
+  color: var(--due-color);
+  font-weight: bold;
+}
+
+.eta-countdown.scheduled {
+  color: var(--scheduled-color);
+  font-style: italic;
+}
+
+/* Footer */
+footer {
+  text-align: center;
+  margin-top: 40px;
+  padding: 20px;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.9em;
+  color: #757575; /* Grey */
+}

@@ -1,0 +1,67 @@
+.mainPage h1 {
+  text-align: center;
+  margin-bottom: var(--spacing-l);
+}
+
+.searchForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-m);
+  margin-bottom: var(--spacing-l);
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.formGroup label {
+  margin-bottom: var(--spacing-xs);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+.formActions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--spacing-m);
+}
+.checkboxGroup {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-s);
+}
+.checkboxGroup label {
+    margin-bottom: 0;
+    font-weight: normal;
+    color: var(--color-text);
+}
+
+
+.error, .errorCard {
+  color: var(--color-error);
+  background-color: rgba(217, 48, 37, 0.1);
+  padding: var(--spacing-s);
+  border-radius: var(--border-radius);
+  margin-bottom: var(--spacing-m);
+  text-align: center;
+}
+.errorCard {
+    text-align: left;
+}
+.errorCard h3 {
+    color: var(--color-error);
+}
+
+
+.resultsArea {
+  margin-top: var(--spacing-l);
+}
+.groupContainer h2 {
+    font-size: var(--font-size-large);
+    color: var(--color-primary-dark);
+    margin-top: var(--spacing-l);
+    margin-bottom: var(--spacing-s);
+    padding-bottom: var(--spacing-xs);
+    border-bottom: 1px solid var(--color-border);
+}

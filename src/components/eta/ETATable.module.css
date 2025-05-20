@@ -1,0 +1,61 @@
+.etaTableCard {
+  margin-bottom: var(--spacing-l);
+}
+
+.etaTableCard h3 {
+  margin-bottom: var(--spacing-s);
+  color: var(--color-primary);
+}
+
+.tableWrapper {
+  overflow-x: auto; /* Allow horizontal scrolling on small screens */
+  width: 100%;
+}
+
+.etaTable {
+  width: 100%;
+  min-width: 700px; /* Ensure table has a minimum width before scrolling */
+  border-collapse: collapse;
+  font-size: var(--font-size-small);
+}
+
+.etaTable th,
+.etaTable td {
+  padding: var(--spacing-s);
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.etaTable th {
+  background-color: var(--color-background);
+  font-weight: bold;
+  color: var(--color-text-secondary);
+}
+
+.etaTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.etaTable tbody tr:hover {
+  background-color: var(--color-background);
+}
+
+.remarks {
+  font-style: italic;
+  color: var(--color-text-secondary);
+  max-width: 200px; /* Limit remarks width */
+  white-space: normal; /* Allow wrapping */
+}
+
+@media (max-width: 768px) {
+  /* .etaTable is now inside .tableWrapper, so no need for display:block here */
+  .etaTable th, .etaTable td {
+    white-space: nowrap;
+    font-size: 0.8rem;
+    padding: var(--spacing-xs) var(--spacing-s);
+  }
+  .remarks {
+    max-width: 150px;
+    white-space: normal; /* Allow remarks to wrap */
+  }
+}

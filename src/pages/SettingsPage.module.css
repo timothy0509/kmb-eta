@@ -1,0 +1,126 @@
+.settingsPage {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.settingsPage h1 {
+  text-align: center;
+  color: var(--color-primary);
+  margin-bottom: var(--spacing-xl);
+}
+
+.settingsSection {
+  margin-bottom: var(--spacing-l);
+  padding: var(--spacing-l);
+}
+
+.settingsSection h2 {
+  font-size: var(--font-size-large);
+  color: var(--color-on-surface-variant);
+  margin-bottom: var(--spacing-m);
+  padding-bottom: var(--spacing-s);
+  border-bottom: 1px solid var(--color-outline);
+}
+
+.settingItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-m) 0;
+  min-height: 48px; /* Material Design touch target */
+}
+.settingItem:not(:last-child) {
+    border-bottom: 1px solid var(--color-surface-variant);
+}
+
+
+.settingItem > span:first-child {
+  color: var(--color-on-surface);
+  font-weight: 500;
+}
+
+/* Custom Switch for Dark Mode */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 50px; /* Adjusted size */
+  height: 28px; /* Adjusted size */
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--color-surface-variant);
+  transition: var(--animation-speed-fast);
+  border-radius: 28px; /* Fully rounded */
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 20px; /* Adjusted size */
+  width: 20px; /* Adjusted size */
+  left: 4px;
+  bottom: 4px;
+  background-color: var(--color-on-primary); /* Handle color */
+  transition: var(--animation-speed-fast);
+  border-radius: 50%;
+  box-shadow: var(--shadow-1);
+}
+
+input:checked + .slider {
+  background-color: var(--color-primary);
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px var(--color-primary);
+}
+
+input:checked + .slider:before {
+  transform: translateX(22px); /* Adjusted translation */
+}
+
+/* Radio Group */
+.radioGroup {
+  display: flex;
+  gap: var(--spacing-m);
+}
+.radioGroup label {
+  padding: var(--spacing-s) var(--spacing-m);
+  border-radius: var(--border-radius-full);
+  cursor: pointer;
+  transition: background-color var(--animation-speed-fast);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-outline);
+}
+.radioGroup input[type="radio"] {
+  margin-right: var(--spacing-s);
+  accent-color: var(--color-primary); /* Modern way to style radio */
+  display: none; /* Hide native radio */
+}
+.radioGroup label:has(input:checked) { /* Style label when radio is checked */
+    background-color: var(--color-primary-container);
+    color: var(--color-on-primary-container);
+    border-color: var(--color-primary);
+    font-weight: 500;
+}
+.radioGroup label:hover {
+    background-color: var(--color-surface-variant);
+}
+
+
+.languageSelect {
+  min-width: 180px;
+  padding: var(--spacing-s) var(--spacing-m); /* Selects need different padding */
+}

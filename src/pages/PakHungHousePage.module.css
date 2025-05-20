@@ -1,0 +1,29 @@
+.pakHungHousePage h1 {
+  margin-bottom: var(--spacing-l);
+}
+
+.groupSection {
+  margin-bottom: var(--spacing-xl);
+}
+
+.groupSection h2 {
+  border-bottom: 2px solid var(--color-primary);
+  padding-bottom: var(--spacing-s);
+  margin-bottom: var(--spacing-m);
+}
+
+.error {
+  color: var(--color-error);
+  background-color: rgba(217, 48, 37, 0.1);
+  padding: var(--spacing-s);
+  border-radius: var(--border-radius);
+}
+.notice {
+    font-size: var(--font-size-small);
+    color: var(--color-text-secondary);
+    margin-top: var(--spacing-l);
+    padding: var(--spacing-m);
+    background-color: var(--color-surface);
+    border: 1px dashed var(--color-border);
+    border-radius: var(--border-radius);
+}

@@ -1,0 +1,44 @@
+.header {
+  background-color: var(--color-surface); /* Or var(--color-primary) for a colored app bar */
+  /* color: var(--color-on-primary); */
+  padding: var(--spacing-s) 0;
+  box-shadow: var(--shadow-2);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo {
+  font-size: var(--font-size-large);
+  font-weight: 700; /* Bolder for logo */
+  color: var(--color-primary); /* Or var(--color-on-primary) if header bg is primary */
+  text-decoration: none;
+}
+
+.settingsButton {
+  background-color: transparent;
+  color: var(--color-on-surface-variant); /* Icon color */
+  border: none;
+  padding: var(--spacing-s); /* Make clickable area larger */
+  border-radius: var(--border-radius-full); /* Circular */
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--animation-speed-fast) var(--animation-easing);
+}
+
+.settingsButton:hover {
+  background-color: var(--color-surface-variant); /* Subtle hover */
+  color: var(--color-primary);
+}
+
+.settingsButton .material-symbols-outlined {
+  font-size: var(--font-size-xlarge); /* Adjust icon size */
+}

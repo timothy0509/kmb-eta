@@ -1,0 +1,13 @@
+.countdown {
+  font-weight: 500;
+}
+
+.due {
+  color: var(--color-error);
+  font-weight: bold;
+}
+
+.scheduled {
+  color: var(--color-text-secondary); /* Or a distinct color for scheduled */
+  font-style: italic;
+}

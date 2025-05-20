@@ -1,0 +1,252 @@
+/* Basic Reset & Font */
+body {
+  margin: 0;
+  font-family: "Google Sans Text", "Roboto", "Noto Sans HK", sans-serif; /* Prioritize Google Sans Text */
+  line-height: 1.6;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Material You Inspired CSS Variables */
+:root {
+  --color-primary: #0b57d0; /* Google Blue 600 */
+  --color-on-primary: #ffffff;
+  --color-primary-container: #d3e3fd; /* Google Blue 100 */
+  --color-on-primary-container: #041e49; /* Google Blue 900 */
+
+  --color-secondary: #555f71; /* Neutral Blue Grey 600 */
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #d9e2f3; /* Neutral Blue Grey 100 */
+  --color-on-secondary-container: #121c2b; /* Neutral Blue Grey 900 */
+
+  --color-tertiary: #6b5770; /* Purple Grey 600 */
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #f3eaf7; /* Purple Grey 100 */
+  --color-on-tertiary-container: #25152a; /* Purple Grey 900 */
+
+  --color-error: #b3261e; /* Error 60 */
+  --color-on-error: #ffffff;
+  --color-error-container: #f9dedc; /* Error 90 */
+  --color-on-error-container: #410e0b; /* Error 10 */
+
+  --color-background: #fef7ff; /* Neutral 99 */
+  --color-on-background: #1d1b20; /* Neutral 10 */
+  --color-surface: #fef7ff; /* Neutral 99 (same as background for a flatter look) */
+  --color-on-surface: #1d1b20; /* Neutral 10 */
+  --color-surface-variant: #e7e0ec; /* Neutral Variant 90 */
+  --color-on-surface-variant: #49454f; /* Neutral Variant 30 */
+  --color-outline: #79747e; /* Neutral Variant 50 */
+  --color-surface-container-highest: #e6e0e9; /* Surface +5 (elevation) */
+
+  --font-size-small: 0.875rem; /* 14px */
+  --font-size-normal: 1rem;    /* 16px */
+  --font-size-large: 1.125rem; /* 18px */
+  --font-size-xlarge: 1.375rem;/* 22px */
+  --font-size-headline: 1.75rem; /* 28px */
+
+  --spacing-xs: 0.25rem; /* 4px */
+  --spacing-s: 0.5rem;  /* 8px */
+  --spacing-m: 1rem;    /* 16px */
+  --spacing-l: 1.5rem;  /* 24px */
+  --spacing-xl: 2rem;   /* 32px */
+
+  --border-radius-small: 4px;
+  --border-radius-medium: 8px;
+  --border-radius-large: 12px; /* More Material You like */
+  --border-radius-xlarge: 16px;
+  --border-radius-full: 999px; /* For pills */
+
+  --shadow-1: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-2: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --shadow-3: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-4: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+
+  --animation-speed-fast: 0.15s;
+  --animation-speed-normal: 0.3s;
+  --animation-easing: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-theme="dark"] {
+  --color-primary: #a8c7fa; /* Google Blue 80 */
+  --color-on-primary: #003062; /* Google Blue 20 */
+  --color-primary-container: #004788; /* Google Blue 30 */
+  --color-on-primary-container: #d3e3fd; /* Google Blue 90 */
+
+  --color-secondary: #bdc6d8; /* Neutral Blue Grey 80 */
+  --color-on-secondary: #273141; /* Neutral Blue Grey 20 */
+  --color-secondary-container: #3e4758; /* Neutral Blue Grey 30 */
+  --color-on-secondary-container: #d9e2f3; /* Neutral Blue Grey 90 */
+
+  --color-tertiary: #d7bde0; /* Purple Grey 80 */
+  --color-on-tertiary: #3b2940; /* Purple Grey 20 */
+  --color-tertiary-container: #523f57; /* Purple Grey 30 */
+  --color-on-tertiary-container: #f3eaf7; /* Purple Grey 90 */
+
+  --color-error: #f2b8b5; /* Error 80 */
+  --color-on-error: #601410; /* Error 20 */
+  --color-error-container: #8c1d18; /* Error 30 */
+  --color-on-error-container: #f9dedc; /* Error 90 */
+
+  --color-background: #1d1b20; /* Neutral 10 */
+  --color-on-background: #e6e1e5; /* Neutral 90 */
+  --color-surface: #1d1b20; /* Neutral 10 (same as background) */
+  --color-on-surface: #e6e1e5; /* Neutral 90 */
+  --color-surface-variant: #49454f; /* Neutral Variant 30 */
+  --color-on-surface-variant: #cac4d0; /* Neutral Variant 80 */
+  --color-outline: #938f99; /* Neutral Variant 60 */
+  --color-surface-container-highest: #36343b; /* Surface +5 (elevation) */
+}
+
+/* General Styles */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--spacing-l); /* Increased padding */
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--color-on-background);
+  margin-top: 0;
+  font-weight: 500; /* Slightly lighter for headings */
+}
+h1 { font-size: var(--font-size-headline); margin-bottom: var(--spacing-l);}
+h2 { font-size: var(--font-size-xlarge); margin-bottom: var(--spacing-m);}
+h3 { font-size: var(--font-size-large); margin-bottom: var(--spacing-s);}
+
+
+button {
+  padding: var(--spacing-s) var(--spacing-l);
+  border: none;
+  background-color: var(--color-primary);
+  color: var(--color-on-primary);
+  border-radius: var(--border-radius-full); /* Pill shape */
+  cursor: pointer;
+  font-size: var(--font-size-normal);
+  font-weight: 500;
+  transition: background-color var(--animation-speed-fast) var(--animation-easing),
+              box-shadow var(--animation-speed-fast) var(--animation-easing);
+  text-transform: none; /* No uppercase */
+  letter-spacing: 0.01em;
+  position: relative; /* For ripple */
+  overflow: hidden; /* For ripple */
+}
+
+button:hover {
+  background-color: color-mix(in srgb, var(--color-primary) 90%, black);
+  box-shadow: var(--shadow-2);
+}
+button:active {
+  box-shadow: var(--shadow-1);
+}
+button:disabled {
+    background-color: var(--color-outline);
+    color: var(--color-surface);
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+button.secondary {
+  background-color: var(--color-secondary-container);
+  color: var(--color-on-secondary-container);
+  border: 1px solid var(--color-outline);
+}
+button.secondary:hover {
+  background-color: color-mix(in srgb, var(--color-secondary-container) 90%, black);
+}
+
+input[type="text"],
+input[type="search"],
+input[type="checkbox"] + label, /* For custom styled checkbox */
+select {
+  padding: var(--spacing-m); /* Increased padding */
+  border: 1px solid var(--color-outline);
+  border-radius: var(--border-radius-medium); /* Softer radius */
+  background-color: var(--color-surface-container-highest); /* Slightly elevated */
+  color: var(--color-on-surface);
+  font-size: var(--font-size-normal);
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color var(--animation-speed-fast) var(--animation-easing),
+              box-shadow var(--animation-speed-fast) var(--animation-easing);
+}
+input[type="text"]:focus,
+input[type="search"]:focus,
+select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+
+.card {
+  background-color: var(--color-surface);
+  border-radius: var(--border-radius-large); /* More rounded */
+  box-shadow: var(--shadow-1);
+  padding: var(--spacing-l);
+  margin-bottom: var(--spacing-l);
+  transition: box-shadow var(--animation-speed-normal) var(--animation-easing);
+}
+.card:hover {
+    box-shadow: var(--shadow-3); /* Subtle hover elevation */
+}
+
+/* Ripple Effect (Basic) */
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.3);
+  transform: scale(0);
+  animation: ripple-animation 0.6s linear;
+  pointer-events: none;
+}
+
+@keyframes ripple-animation {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* Animation for appearing elements */
+@keyframes fadeInSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-slide-up {
+  animation: fadeInSlideUp var(--animation-speed-normal) var(--animation-easing) forwards;
+}
+
+/* Utility classes */
+.text-center { text-align: center; }
+.mt-1 { margin-top: var(--spacing-s); }
+.mb-1 { margin-bottom: var(--spacing-s); }
+/* ... add more as needed */
+
+/* Responsive */
+@media (max-width: 768px) {
+  .container {
+    padding: var(--spacing-m);
+  }
+  h1 { font-size: var(--font-size-xlarge); }
+  h2 { font-size: var(--font-size-large); }
+  button { padding: var(--spacing-s) var(--spacing-m); }
+}
+
+/* For Material Symbols */
+.material-symbols-outlined {
+  font-variation-settings:
+  'FILL' 0,
+  'wght' 400,
+  'GRAD' 0,
+  'opsz' 24;
+  vertical-align: middle; /* Align icons better with text */
+}

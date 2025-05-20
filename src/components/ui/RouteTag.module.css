@@ -1,0 +1,10 @@
+.routeTag {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: var(--font-size-small);
+  text-align: center;
+  min-width: 40px; /* Ensure some width */
+  box-sizing: border-box;
+}
