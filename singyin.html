@@ -7,25 +7,46 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body class="dark-mode">
-    <!-- Assuming dark-mode is default here, or managed by a separate toggle if needed -->
     <div class="container">
       <div class="header-controls">
         <h1>Pak Hung House - Bus ETA</h1>
         <div class="theme-switch-wrapper">
           <label class="theme-switch" for="countdownToggleSy">
-            <input type="checkbox" id="countdownToggleSy" />
+            <input
+              type="checkbox"
+              id="countdownToggleSy"
+              role="switch"
+              aria-checked="false"
+            />
             <span class="slider round"></span>
           </label>
           <span class="theme-label">ETA Countdown</span>
         </div>
       </div>
-
-      <div id="status-messages"></div>
-      <div id="eta-results-area"></div>
+      <div id="status-messages-sy" role="status" aria-live="polite"></div>
+      <div class="eta-controls-header">
+        <button
+          id="manual-refresh-button-sy"
+          type="button"
+          style="display: none"
+        >
+          Refresh Now
+        </button>
+        <span id="last-updated-timestamp-sy" style="display: none"></span>
+      </div>
+      <div id="eta-results-area-sy">
+        <!-- ETA results will be populated here -->
+      </div>
       <div id="legend">
         <p><strong>Legend:</strong></p>
         <p>
           <span class="scheduled-eta">Grey Text / Italic</span>: Scheduled Bus
+        </p>
+        <p>
+          <span class="eta-due">Bold Blue</span>: Bus is Due
+        </p>
+        <p>
+          <span class="eta-departed">Strikethrough</span>: Bus has Departed
         </p>
         <p>
           <span>*, !, ^</span>: See "Remarks" column for details.
@@ -39,9 +60,12 @@
       const STOP_CACHE_KEY_SY = "kmb_stop_data_cache_singyin_v3"; // Unique key
       const CACHE_EXPIRY_HOURS_SY = 23;
 
-      const statusMessagesDivSy = document.getElementById("status-messages");
-      const etaResultsAreaDivSy = document.getElementById("eta-results-area");
+      const statusMessagesDivSy = document.getElementById("status-messages-sy");
+      const etaResultsAreaDivSy = document.getElementById("eta-results-area-sy");
       const countdownToggleSy = document.getElementById("countdownToggleSy");
+      const manualRefreshButtonSy = document.getElementById("manual-refresh-button-sy");
+      const lastUpdatedTimestampSpanSy = document.getElementById("last-updated-timestamp-sy");
+
 
       let fullStopDetailsCacheSy = {}; // stopId -> {name_en, name_tc}
       let activeEtaCellsSy = [];
@@ -139,7 +163,7 @@
           cached.data.forEach(
             (stop) =>
               (fullStopDetailsCacheSy[stop.stop] = {
-                name_en: processNameSy(stop.name_en), // Ensure names are processed
+                name_en: processNameSy(stop.name_en), 
                 name_tc: stop.name_tc,
               })
           );
@@ -193,17 +217,16 @@
         name = name
           .replace(/(BBI)-/gi, "$1 - ")
           .replace(/(轉車站)-/g, "$1 - ");
-        // Simplified customTitleCase for singyin
         return name
           .trim()
           .replace(/\w\S*/g, (txt) => {
+            const upperTxt = txt.toUpperCase();
+            // Simplified override for SingYin, can be expanded if needed
+            const overrides = ["KMB", "LWB", "MTR", "PTI", "HSBC", "RD", "ST", "AVE", "FEHD", "LCSD", "NT", "KLN", "HK"];
+            if (overrides.includes(upperTxt)) return upperTxt;
+            if (txt.toUpperCase() === "MCDONALD'S") return "McDonald's";
             return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
-          })
-          .replace(
-            / (Kmb|Lwb|Mtr|Pti|Hsbc|Rd|St|Ave|Fehd|Lcsd|Nt|Kln|Hk)\b/gi,
-            (match) => match.toUpperCase()
-          )
-          .replace(/\b(Mcdonald'S)\b/gi, "McDonald's");
+          });
       }
 
       function setStatusSy(message, type = "info", isUpdate = false) {
@@ -274,12 +297,22 @@
         }
       }
 
-      function formatEtaCountdownSy(isoTimestamp) {
+      function formatEtaCountdownSy(isoTimestamp, cell) {
         if (!isoTimestamp) return "-";
         const etaTime = new Date(isoTimestamp).getTime();
         const now = new Date().getTime();
         let diff = Math.round((etaTime - now) / 1000);
-        if (diff <= 0) return diff < -30 ? "Departed" : "Due";
+
+        cell.classList.remove('eta-due', 'eta-departed');
+        if (diff <= 0) {
+            if (diff < -30) {
+                cell.classList.add('eta-departed');
+                return "Departed";
+            } else {
+                cell.classList.add('eta-due');
+                return "Due";
+            }
+        }
         const minutes = Math.floor(diff / 60);
         const seconds = diff % 60;
         return `${minutes}m ${seconds.toString().padStart(2, "0")}s`;
@@ -321,7 +354,7 @@
 
       function setupMarqueesSy() {
         document
-          .querySelectorAll(".eta-dest-en-cell .marquee-text-wrapper")
+          .querySelectorAll("#eta-results-area-sy .eta-dest-en-cell .marquee-text-wrapper")
           .forEach((wrapper) => {
             const span = wrapper.querySelector("span");
             if (
@@ -356,7 +389,7 @@
           )}`;
           etaResultsAreaDivSy.appendChild(groupContainer);
         }
-        groupContainer.innerHTML = ""; // Clear previous content for this group
+        groupContainer.innerHTML = ""; 
 
         const tableContainer = document.createElement("div");
         tableContainer.className = "eta-table-container";
@@ -405,7 +438,6 @@
           if (!committedServiceTypes[primaryKey])
             committedServiceTypes[primaryKey] = eta.service_type;
           if (eta.service_type === committedServiceTypes[primaryKey]) {
-            // For SingYin, group by stop as well to show platform correctly
             const displayKey = `${primaryKey}-${eta.stop}`;
             if (!processedGroupedEtas[displayKey]) {
               processedGroupedEtas[displayKey] = {
@@ -475,7 +507,7 @@
               }
               expansionDetails.push({
                 time: formatEtaTimeSy(etaEntry.eta),
-                countdown: formatEtaCountdownSy(etaEntry.eta),
+                countdown: formatEtaCountdownSy(etaEntry.eta, document.createElement('span')),
                 isDueOrDeparted:
                   new Date(etaEntry.eta).getTime() <= new Date().getTime(),
                 remark: remarkText,
@@ -504,7 +536,12 @@
           if (timedEtas.length > 0) {
             const row = document.createElement("tr");
             row.classList.add("eta-data-row");
-            if (rowIsExpandable) row.classList.add("is-expandable");
+            const expansionRowId = `expansion-sy-${group.details.route}-${group.details.stop}-${Date.now()}${Math.random().toString(36).substring(2,7)}`;
+            if (rowIsExpandable) {
+                row.classList.add("is-expandable");
+                row.setAttribute("aria-expanded", "false");
+                row.setAttribute("aria-controls", expansionRowId);
+            }
             const firstEta = timedEtas[0];
 
             const routeCell = document.createElement("td");
@@ -547,13 +584,16 @@
                   showCountdown &&
                   !isScheduled &&
                   new Date(timedEtas[i].eta) > new Date()
-                    ? formatEtaCountdownSy(timedEtas[i].eta)
+                    ? formatEtaCountdownSy(timedEtas[i].eta, td)
                     : formatEtaTimeSy(timedEtas[i].eta);
                 let remarkText = timedEtas[i].rmk_en || timedEtas[i].rmk_tc || "";
                 let highlightClass =
                   i === 0 && timedEtas[i].eta ? " first-eta-highlight" : "";
                 let displayHtml = `<span class="eta-time-value${highlightClass}">${etaDisplayContent}</span>`;
                 if (isScheduled) td.classList.add("scheduled-eta");
+                else if (new Date(timedEtas[i].eta).getTime() <= new Date().getTime()) {
+                    formatEtaCountdownSy(timedEtas[i].eta, td); 
+                }
                 if (remarkText && !isScheduled) {
                   const symbol = allRemarksForDisplayForRow.get(remarkText);
                   if (symbol)
@@ -584,12 +624,17 @@
                   etaEntry.rmk_en === "Scheduled Bus" ||
                   etaEntry.rmk_tc === "原定班次";
                 if (isScheduled) etaItemDiv.classList.add("scheduled-eta");
+                
                 let mobileEtaText =
                   showCountdown &&
                   !isScheduled &&
                   new Date(etaEntry.eta) > new Date()
-                    ? formatEtaCountdownSy(etaEntry.eta)
+                    ? formatEtaCountdownSy(etaEntry.eta, etaItemDiv)
                     : formatEtaTimeSy(etaEntry.eta);
+                if (!isScheduled && new Date(etaEntry.eta).getTime() <= new Date().getTime()) {
+                    formatEtaCountdownSy(etaEntry.eta, etaItemDiv);
+                }
+
                 let mobileDisplayHtml = `<span>${mobileEtaText}</span>`;
                 const remarkText = etaEntry.rmk_en || etaEntry.rmk_tc || "";
                 if (remarkText && !isScheduled) {
@@ -623,6 +668,7 @@
             if (rowIsExpandable) {
               const expansionRow = document.createElement("tr");
               expansionRow.className = "mobile-expansion-row";
+              expansionRow.id = expansionRowId;
               const expansionCell = document.createElement("td");
               expansionCell.className = "mobile-expansion-cell";
               expansionCell.colSpan = headersBaseSy.length;
@@ -633,67 +679,57 @@
                 itemDiv.className = "mobile-expansion-content-item";
                 if (detail.isScheduled)
                   itemDiv.classList.add("scheduled-eta");
-                let timeToShow =
-                  showCountdown &&
-                  !detail.isScheduled &&
-                  detail.etaTimestamp &&
-                  new Date(detail.etaTimestamp) > new Date()
-                    ? detail.countdown
-                    : detail.time;
-                if (
-                  detail.isDueOrDeparted &&
-                  !detail.isScheduled &&
-                  detail.etaTimestamp
-                )
-                  timeToShow = detail.countdown;
+                
+                let timeToShow = detail.time;
+                if (showCountdown && !detail.isScheduled && detail.etaTimestamp && new Date(detail.etaTimestamp) > new Date()) {
+                    timeToShow = detail.countdown;
+                } else if (!detail.isScheduled && detail.etaTimestamp && new Date(detail.etaTimestamp).getTime() <= new Date().getTime()) {
+                    const tempCell = document.createElement('span');
+                    timeToShow = formatEtaCountdownSy(detail.etaTimestamp, tempCell);
+                    if (tempCell.classList.contains('eta-due')) itemDiv.classList.add('eta-due');
+                    if (tempCell.classList.contains('eta-departed')) itemDiv.classList.add('eta-departed');
+                }
                 itemDiv.innerHTML = `<span class="eta-time">${timeToShow}</span> <span class="remark-text">${detail.remark || ""}</span>`;
                 expansionCell.appendChild(itemDiv);
               });
               expansionRow.appendChild(expansionCell);
               fragment.appendChild(expansionRow);
             }
-          }
-
-          if (group.remarksOnly.length > 0) {
-            if (
-              timedEtas.length > 0 &&
-              group.remarksOnly.some((r) => r.rmk_en || r.rmk_tc || r.rmk_sc)
-            ) {
-              const sepRow = document.createElement("tr");
-              sepRow.classList.add("eta-separator");
-              const sepCell = document.createElement("td");
-              sepCell.colSpan = headersBaseSy.length;
-              sepRow.appendChild(sepCell);
-              fragment.appendChild(sepRow);
-            }
-            group.remarksOnly.forEach((remarkEta) => {
-              if (!(remarkEta.rmk_en || remarkEta.rmk_tc || remarkEta.rmk_sc))
-                return;
+          } else if (group.remarksOnly.length > 0) { // Only remarks, no timed ETAs for this route/stop
+            group.remarksOnly.forEach(remarkEta => {
+              if (!(remarkEta.rmk_en || remarkEta.rmk_tc || remarkEta.rmk_sc)) return;
               const row = document.createElement("tr");
               row.classList.add("remark-only-row");
               const remarkRouteCell = document.createElement("td");
-              remarkRouteCell.classList.add(
-                getRouteColorClassSy(remarkEta.route)
-              );
+              remarkRouteCell.classList.add(getRouteColorClassSy(remarkEta.route));
               remarkRouteCell.innerHTML = `<span class="route-tag">${formatRouteNumberForDisplaySy(remarkEta.route)}</span>`;
               row.appendChild(remarkRouteCell);
 
               const remarkPlatCell = document.createElement("td");
-              remarkPlatCell.textContent =
-                stopPlatformMap[remarkEta.stop] || "-";
+              remarkPlatCell.textContent = stopPlatformMap[remarkEta.stop] || "-";
               row.appendChild(remarkPlatCell);
 
               const remarkDestEnCell = document.createElement("td");
-              remarkDestEnCell.textContent = remarkEta.dest_en;
+              remarkDestEnCell.textContent = remarkEta.dest_en || "-";
               row.appendChild(remarkDestEnCell);
               const remarkDestTcCell = document.createElement("td");
-              remarkDestTcCell.textContent = remarkEta.dest_tc;
+              remarkDestTcCell.textContent = remarkEta.dest_tc || "-";
               row.appendChild(remarkDestTcCell);
+              
+              // For ETAs 1, 2, 3 - show '-'
+              for (let i = 0; i < 3; i++) {
+                  const etaTd = document.createElement("td");
+                  etaTd.textContent = "-";
+                  row.appendChild(etaTd);
+              }
+              // Mobile ETA cell
+              const mobileEtaTd = document.createElement("td");
+              mobileEtaTd.className = "mobile-etas-td-container";
+              mobileEtaTd.textContent = "-";
+              row.appendChild(mobileEtaTd);
 
               const remarkContentCell = document.createElement("td");
-              remarkContentCell.colSpan = headersBaseSy.length - 4;
-              remarkContentCell.textContent =
-                remarkEta.rmk_en || remarkEta.rmk_tc || remarkEta.rmk_sc;
+              remarkContentCell.textContent = remarkEta.rmk_en || remarkEta.rmk_tc || remarkEta.rmk_sc;
               row.appendChild(remarkContentCell);
               fragment.appendChild(row);
             });
@@ -709,7 +745,7 @@
         activeEtaCellsSy = [];
         document
           .querySelectorAll(
-            "#eta-results-area td.desktop-eta-cell[data-eta-timestamp], #eta-results-area .mobile-eta-item[data-eta-timestamp]"
+            "#eta-results-area-sy td.desktop-eta-cell[data-eta-timestamp], #eta-results-area-sy .mobile-eta-item[data-eta-timestamp]"
           )
           .forEach((cell) => {
             const timestamp = cell.dataset.etaTimestamp;
@@ -720,11 +756,16 @@
 
             if (timestamp && timeValueElement) {
               const etaDate = new Date(timestamp);
+              cell.classList.remove('eta-due', 'eta-departed');
+
               if (showCountdown && !isScheduled && etaDate > new Date()) {
-                timeValueElement.textContent = formatEtaCountdownSy(timestamp);
+                timeValueElement.textContent = formatEtaCountdownSy(timestamp, cell);
                 activeEtaCellsSy.push(cell);
               } else {
                 timeValueElement.textContent = formatEtaTimeSy(timestamp);
+                 if (!isScheduled && etaDate <= new Date()) {
+                    timeValueElement.textContent = formatEtaCountdownSy(timestamp, cell);
+                }
               }
             }
           });
@@ -774,21 +815,37 @@
           console.log(`Cleared refresh timer for ${timerId} (SY)`);
         }
       }
+      
+      function updateLastUpdatedTimestampSy() {
+        lastUpdatedTimestampSpanSy.textContent = `Last updated: ${new Date().toLocaleTimeString('en-GB')}`;
+        lastUpdatedTimestampSpanSy.style.display = 'inline';
+        manualRefreshButtonSy.style.display = 'inline-block';
+      }
+
 
       async function loadSingYinEtas(isSilent = true) {
+        if (!isSilent) {
+            etaResultsAreaDivSy.innerHTML = `<div class="loading-placeholder">Loading Pak Hung House ETAs... <div class="spinner"></div></div>`;
+        }
         setStatusSy("Loading Pak Hung House ETAs...", "loading", isSilent);
+        
         try {
-          await getFullStopListForSingYin(); // Ensure stop names are available
+          await getFullStopListForSingYin(); 
           if (!isSilent) {
-            etaResultsAreaDivSy.innerHTML = ""; // Clear only on initial, non-silent load
+            etaResultsAreaDivSy.innerHTML = ""; 
           }
-          activeEtaCellsSy = []; // Clear before re-rendering
+          activeEtaCellsSy = []; 
 
-          // Store scroll positions for each group container
           const scrollPositions = {};
-          document.querySelectorAll('#eta-results-area > div[id^="group-container-"]').forEach(container => {
-            scrollPositions[container.id] = container.scrollTop;
+          document.querySelectorAll('#eta-results-area-sy > div[id^="group-container-"]').forEach(container => {
+            const titleEl = container.querySelector('h3');
+            if (titleEl) scrollPositions[titleEl.textContent] = container.scrollTop;
           });
+          
+          // Clear only group containers if refreshing, not the whole area if silent
+          if (isSilent) {
+             document.querySelectorAll('#eta-results-area-sy > div[id^="group-container-"]').forEach(container => container.innerHTML = "");
+          }
 
 
           for (const group of predefinedStopGroupsSy) {
@@ -818,22 +875,27 @@
             );
           }
 
-          // Restore scroll positions
-          document.querySelectorAll('#eta-results-area > div[id^="group-container-"]').forEach(container => {
-            if (scrollPositions[container.id] !== undefined) {
-                container.scrollTop = scrollPositions[container.id];
+          document.querySelectorAll('#eta-results-area-sy > div[id^="group-container-"]').forEach(container => {
+            const titleEl = container.querySelector('h3');
+            if (titleEl && scrollPositions[titleEl.textContent] !== undefined) {
+                container.scrollTop = scrollPositions[titleEl.textContent];
             }
           });
 
 
-          if (etaResultsAreaDivSy.innerHTML === "" && !isSilent) {
+          if (etaResultsAreaDivSy.innerHTML.trim() === "" && !isSilent) {
             setStatusSy("No ETA data found for Pak Hung House stops.", "info");
-          } else if (
-            !isSilent ||
-            (isSilent &&
-              statusMessagesDivSy.textContent.includes("Loading Pak Hung"))
-          ) {
-            clearStatusSy();
+            lastUpdatedTimestampSpanSy.style.display = 'none';
+            manualRefreshButtonSy.style.display = 'none';
+          } else {
+            updateLastUpdatedTimestampSy();
+            if (
+              !isSilent ||
+              (isSilent &&
+                statusMessagesDivSy.textContent.includes("Loading Pak Hung"))
+            ) {
+              clearStatusSy();
+            }
           }
           setupMarqueesSy();
           updateDisplayedEtaFormatSy();
@@ -844,6 +906,9 @@
             "error",
             isSilent
           );
+          if (!isSilent) etaResultsAreaDivSy.innerHTML = ""; // Clear loading placeholder
+           lastUpdatedTimestampSpanSy.style.display = 'none';
+           manualRefreshButtonSy.style.display = 'none';
         }
       }
 
@@ -864,13 +929,9 @@
                 !cell.classList.contains("scheduled-eta")
               ) {
                 const etaDate = new Date(timestamp);
-                if (etaDate > new Date()) {
-                  targetElement.textContent = formatEtaCountdownSy(timestamp);
-                } else {
-                  const now = new Date().getTime();
-                  let diff = Math.round((etaDate.getTime() - now) / 1000);
-                  targetElement.textContent = diff < -30 ? "Departed" : "Due";
-                  return false;
+                targetElement.textContent = formatEtaCountdownSy(timestamp, cell);
+                if (etaDate <= new Date()) {
+                    return false;
                 }
               } else if (cell.classList.contains("scheduled-eta")) {
                 return false;
@@ -889,7 +950,10 @@
 
       function setCountdownModeSy(showCountdown) {
         saveSettingSy("showCountdownSy", showCountdown);
-        if (countdownToggleSy) countdownToggleSy.checked = showCountdown;
+        if (countdownToggleSy) {
+            countdownToggleSy.checked = showCountdown;
+            countdownToggleSy.setAttribute('aria-checked', showCountdown);
+        }
         updateDisplayedEtaFormatSy();
       }
 
@@ -900,7 +964,7 @@
         );
         setCountdownModeSy(savedCountdownPreferenceSy);
 
-        loadSingYinEtas(false); // Initial load, not silent
+        loadSingYinEtas(false); 
         scheduleNextMinuteRefreshSy(
           () => loadSingYinEtas(true),
           "singYinPage"
@@ -908,9 +972,12 @@
 
         countdownToggleSy.addEventListener("change", (event) => {
           setCountdownModeSy(event.target.checked);
+          event.target.setAttribute('aria-checked', event.target.checked);
         });
+        
+        manualRefreshButtonSy.addEventListener('click', () => loadSingYinEtas(false));
 
-        etaResultsAreaDivSy.addEventListener("dblclick", function (event) {
+        etaResultsAreaDivSy.addEventListener("click", function (event) { // Changed to single click
           const row = event.target.closest("tr.eta-data-row.is-expandable");
           if (!row) return;
           const expansionRow = row.nextElementSibling;
@@ -920,6 +987,7 @@
           ) {
             const isVisible = expansionRow.classList.toggle("is-visible");
             row.classList.toggle("is-expanded", isVisible);
+            row.setAttribute('aria-expanded', isVisible);
           }
         });
       });

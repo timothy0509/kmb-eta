@@ -1,4 +1,4 @@
-/* style.css - Enhanced with Google Sans Hierarchy */
+/* style.css - Enhanced with Google Sans Hierarchy & UX Improvements */
 @import url("https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Google+Sans+Text:wght@400;500;700&family=Google+Sans:wght@400;500;700&family=Google+Sans+Display:wght@400;700&display=swap");
 
 :root {
@@ -38,6 +38,12 @@
   --shadow-color-light: rgba(0, 0, 0, 0.08);
   --shadow-color-strong-light: rgba(0, 0, 0, 0.12);
   --mobile-expandable-row-bg-light: #f8f9fa; /* For expanded area */
+  --autocomplete-bg-light: #ffffff;
+  --autocomplete-hover-bg-light: #f1f3f4;
+  --recent-search-bg-light: #e8f0fe;
+  --recent-search-text-light: #1967d2;
+  --recent-search-hover-bg-light: #d2e3fc;
+
 
   /* Dark Mode Variables */
   --background-color-dark: #1a1b1e;
@@ -54,6 +60,12 @@
   --shadow-color-dark: rgba(0, 0, 0, 0.3);
   --shadow-color-strong-dark: rgba(0, 0, 0, 0.5);
   --mobile-expandable-row-bg-dark: #2e2f32; /* For expanded area */
+  --autocomplete-bg-dark: #3c4043;
+  --autocomplete-hover-bg-dark: #4a4e52;
+  --recent-search-bg-dark: #202c41;
+  --recent-search-text-dark: #89b4f8;
+  --recent-search-hover-bg-dark: #303f5a;
+
 
   /* Status Colors */
   --success-bg: #e6f4ea;
@@ -108,6 +120,12 @@
   --shadow-color-strong: var(--shadow-color-strong-light);
   --focus-ring-color: var(--primary-color-light-focus);
   --mobile-expandable-row-bg: var(--mobile-expandable-row-bg-light);
+  --autocomplete-bg: var(--autocomplete-bg-light);
+  --autocomplete-hover-bg: var(--autocomplete-hover-bg-light);
+  --recent-search-bg: var(--recent-search-bg-light);
+  --recent-search-text: var(--recent-search-text-light);
+  --recent-search-hover-bg: var(--recent-search-hover-bg-light);
+
   --status-success-bg: var(--success-bg);
   --status-success-text: var(--success-text);
   --status-success-border: var(--success-border);
@@ -131,6 +149,12 @@ body.dark-mode {
   --shadow-color-strong: var(--shadow-color-strong-dark);
   --focus-ring-color: var(--primary-color-dark-focus);
   --mobile-expandable-row-bg: var(--mobile-expandable-row-bg-dark);
+  --autocomplete-bg: var(--autocomplete-bg-dark);
+  --autocomplete-hover-bg: var(--autocomplete-hover-bg-dark);
+  --recent-search-bg: var(--recent-search-bg-dark);
+  --recent-search-text: var(--recent-search-text-dark);
+  --recent-search-hover-bg: var(--recent-search-hover-bg-dark);
+
 
   --route-normal-text: var(--on-surface-color-dark);
   --route-normal-bg: #3c4043;
@@ -192,6 +216,7 @@ body {
   padding-bottom: 15px;
   border-bottom: 1px solid var(--outline-color);
   transition: border-color var(--animation-duration);
+  flex-wrap: wrap; /* Allow wrapping for smaller screens if many items */
 }
 h1 {
   font-family: var(--font-family-display);
@@ -208,6 +233,8 @@ h1 {
   display: flex;
   align-items: center;
   margin-left: 15px;
+  margin-top: 5px; /* Add some top margin for wrapped items */
+  margin-bottom: 5px;
 }
 .theme-label {
   font-family: var(--font-family-sans);
@@ -271,11 +298,12 @@ body.dark-mode input:checked + .slider {
   display: flex;
   flex-wrap: wrap;
   gap: 24px;
-  margin-bottom: 35px;
+  margin-bottom: 25px; /* Reduced margin */
   align-items: flex-end;
 }
 .controls > div {
   flex: 1 1 220px;
+  position: relative; /* For autocomplete positioning */
 }
 .controls label {
   font-family: var(--font-family-text);
@@ -306,7 +334,7 @@ body.dark-mode input:checked + .slider {
 .grouping-control {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px; /* Reduced gap */
   padding-bottom: 12px;
   flex-basis: auto !important;
   flex-grow: 0 !important;
@@ -324,6 +352,20 @@ body.dark-mode input:checked + .slider {
   font-weight: 400;
   color: var(--on-surface-color);
   font-size: 0.95em;
+}
+.info-tooltip {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  line-height: 18px;
+  text-align: center;
+  border-radius: 50%;
+  background-color: var(--on-surface-variant-color);
+  color: var(--surface-color);
+  font-size: 0.75em;
+  font-weight: bold;
+  cursor: help;
+  margin-left: 2px;
 }
 .controls button {
   font-family: var(--font-family-sans);
@@ -353,6 +395,68 @@ body.dark-mode input:checked + .slider {
   transform: translateY(1px) scale(0.98);
   box-shadow: 0 1px 3px var(--shadow-color);
 }
+
+/* Autocomplete Suggestions */
+.autocomplete-suggestions {
+  position: absolute;
+  border: 1px solid var(--outline-color);
+  border-top: none;
+  z-index: 99;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: var(--autocomplete-bg);
+  border-radius: 0 0 var(--border-radius-medium) var(--border-radius-medium);
+  box-shadow: 0 4px 8px var(--shadow-color);
+  max-height: 200px;
+  overflow-y: auto;
+}
+.autocomplete-suggestions div {
+  padding: 10px 15px;
+  cursor: pointer;
+  color: var(--on-surface-color);
+}
+.autocomplete-suggestions div:hover {
+  background-color: var(--autocomplete-hover-bg);
+}
+
+/* Recent Searches */
+#recent-searches-area {
+  margin-bottom: 25px;
+  padding: 15px;
+  background-color: var(--surface-color);
+  border: 1px solid var(--outline-color);
+  border-radius: var(--border-radius-medium);
+  display: none; /* Hidden by default, shown by JS */
+}
+#recent-searches-area p strong {
+  font-family: var(--font-family-sans);
+  color: var(--on-surface-variant-color);
+  font-size: 0.9em;
+}
+#recent-searches-list {
+  list-style: none;
+  padding: 0;
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.recent-search-item {
+  background-color: var(--recent-search-bg);
+  color: var(--recent-search-text);
+  border: 1px solid transparent;
+  padding: 6px 12px;
+  border-radius: var(--border-radius-pill);
+  font-size: 0.85em;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+.recent-search-item:hover {
+  background-color: var(--recent-search-hover-bg);
+  border-color: var(--primary-color);
+}
+
 
 #status-messages {
   font-family: var(--font-family-text);
@@ -389,6 +493,35 @@ body.dark-mode input:checked + .slider {
   border-color: var(--status-success-border);
   color: var(--status-success-text);
 }
+
+/* ETA Controls Header (Refresh, Last Updated) */
+.eta-controls-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding: 5px 0;
+}
+#manual-refresh-button, #manual-refresh-button-sy {
+  font-family: var(--font-family-sans);
+  padding: 8px 15px;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-small);
+  cursor: pointer;
+  font-size: 0.85em;
+  font-weight: 500;
+  transition: background-color var(--animation-duration);
+}
+#manual-refresh-button:hover, #manual-refresh-button-sy:hover {
+  background-color: var(--primary-color-dark-hover);
+}
+#last-updated-timestamp, #last-updated-timestamp-sy {
+  font-size: 0.85em;
+  color: var(--on-surface-variant-color);
+}
+
 
 .eta-table-container {
   margin-bottom: 35px;
@@ -447,15 +580,10 @@ table.eta-results th {
   border-bottom-width: 2px;
   transition: color var(--animation-duration);
 }
-/* Adjust last child border removal for mobile expansion */
 table.eta-results tr:not(.mobile-expansion-row):last-of-type td:not(.mobile-expansion-cell) {
     border-bottom: none;
 }
-table.eta-results tr.eta-data-row:last-of-type.is-expanded + tr.mobile-expansion-row td.mobile-expansion-cell {
-    /* If the very last data row is expanded, its expansion cell should not have a bottom border if it's truly the end */
-    /* This might be complex if there are other elements after the table. Simpler to let it have a border. */
-}
-table.eta-results tr:not(.mobile-expansion-row):hover td {
+table.eta-results tr.eta-data-row:not(.mobile-expansion-row):hover td {
   background-color: var(--table-row-hover);
 }
 .scheduled-eta {
@@ -463,6 +591,16 @@ table.eta-results tr:not(.mobile-expansion-row):hover td {
   font-style: italic;
   opacity: 0.8;
 }
+.eta-due {
+  font-weight: bold;
+  color: var(--primary-color) !important; /* Ensure override */
+}
+.eta-departed {
+  text-decoration: line-through;
+  opacity: 0.7;
+  color: var(--on-surface-variant-color) !important; /* Ensure override */
+}
+
 .remark-symbol { /* Desktop remark symbol */
   font-weight: bold;
   margin-left: 5px;
@@ -555,6 +693,32 @@ footer p {
   transition: color var(--animation-duration);
 }
 
+/* Loading Placeholder & Spinner */
+.loading-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  font-size: 1.1em;
+  color: var(--on-surface-variant-color);
+  text-align: center;
+}
+.spinner {
+  border: 4px solid var(--outline-color);
+  border-top: 4px solid var(--primary-color);
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  animation: spin 1s linear infinite;
+  margin-top: 15px;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+
 /* Hide mobile-specific TD container and expansion row on desktop */
 td.mobile-etas-td-container,
 tr.mobile-expansion-row {
@@ -564,9 +728,9 @@ tr.mobile-expansion-row {
 @media (max-width: 768px) {
   body { padding: 15px; }
   .container { margin: 15px auto; padding: 20px 25px; }
-  .header-controls { flex-direction: column; align-items: flex-start; gap: 15px; padding-bottom: 10px; }
+  .header-controls { flex-direction: column; align-items: flex-start; gap: 10px; padding-bottom: 10px; }
   h1 { margin-bottom: 5px; font-size: 1.8em; }
-  .theme-switch-wrapper { margin-bottom: 10px; margin-left: 0; }
+  .theme-switch-wrapper { margin-bottom: 5px; margin-left: 0; }
   .controls { gap: 18px; margin-bottom: 30px; }
   .controls > div { flex-basis: 100%; }
   .controls button { width: 100%; padding: 15px; }
@@ -574,6 +738,7 @@ tr.mobile-expansion-row {
   table.eta-results { font-size: 0.875em; }
   table.eta-results th, table.eta-results td { padding: 10px 8px; }
   :root { --route-tag-base-font-size: 0.85em; }
+  .eta-controls-header { flex-direction: column; gap: 10px; align-items: flex-start;}
 }
 
 /* Mobile Specific ETA Layout - Applied for smaller screens */
@@ -583,24 +748,40 @@ tr.mobile-expansion-row {
 
   table.eta-results tr.eta-data-row {
     display: grid;
-    grid-template-columns: 60px 1fr auto;
+    grid-template-columns: 60px 1fr auto; /* Route | Dest | ETAs */
     align-items: center;
     gap: 8px;
     padding: 12px;
-    margin-bottom: 0; /* Will be handled by expansion row or if it's the last */
+    margin-bottom: 0; 
     border: 1px solid var(--outline-color);
-    border-radius: var(--border-radius-medium); /* Default full radius */
+    border-radius: var(--border-radius-medium); 
     background-color: var(--surface-color);
     box-shadow: 0 2px 5px var(--shadow-color);
     position: relative;
   }
-  table.eta-results tr.eta-data-row.is-expandable { cursor: pointer; }
+  table.eta-results tr.eta-data-row.is-expandable { 
+    cursor: pointer; 
+    padding-right: 35px; /* Space for chevron */
+  }
+  table.eta-results tr.eta-data-row.is-expandable::after { /* Chevron */
+    content: '❯';
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%) rotate(0deg);
+    font-size: 1.2em;
+    color: var(--on-surface-variant-color);
+    transition: transform 0.2s var(--animation-timing-function);
+  }
+  table.eta-results tr.eta-data-row.is-expandable.is-expanded::after {
+    transform: translateY(-50%) rotate(90deg);
+  }
+
   table.eta-results tr.eta-data-row.is-expanded {
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
-    border-bottom-color: transparent; /* Hide its own bottom border when expanded */
+    border-bottom-color: transparent; 
   }
-   /* Add margin to the actual last visual element */
   table.eta-results tr.eta-data-row:not(.is-expanded):last-of-type,
   table.eta-results tr.mobile-expansion-row:last-of-type {
     margin-bottom: 12px;
@@ -612,7 +793,45 @@ tr.mobile-expansion-row {
 
   td.mobile-etas-td-container { display: block; grid-column: 3; padding-left: 5px; }
   td.desktop-eta-cell, td.eta-platform-cell, td.eta-dest-tc-cell,
-  td.eta-remarks-cell, tr.remark-only-row, tr.eta-separator { display: none !important; }
+  td.eta-remarks-cell, tr.remark-only-row:not(:first-child) td:not(.eta-route-cell):not(.eta-dest-en-cell):not(.mobile-etas-td-container), /* Keep some cells for remark-only on mobile */
+  tr.eta-separator { display: none !important; }
+
+  /* Adjust remark-only rows for mobile */
+  tr.remark-only-row {
+    display: grid !important;
+    grid-template-columns: 60px 1fr auto;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    border: 1px solid var(--outline-color);
+    border-radius: var(--border-radius-medium);
+    background-color: var(--surface-color);
+    box-shadow: 0 1px 3px var(--shadow-color);
+  }
+  tr.remark-only-row td.eta-route-cell { grid-column: 1; }
+  tr.remark-only-row td:nth-child(2) { /* This would be platform, hide if not needed or make it dest_en */
+    grid-column: 2;
+    font-style: normal; /* Override italic from desktop */
+    white-space: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+   tr.remark-only-row td:nth-child(3) { /* This would be dest_en, make it the remark content */
+    grid-column: 2; /* Span across where dest_en would be */
+    grid-column-start: 2;
+    grid-column-end: 4; /* Span to the end */
+    font-style: italic;
+    color: var(--on-surface-variant-color);
+    font-size: 0.9em;
+    padding-left: 5px;
+    white-space: normal;
+  }
+  /* Hide other cells in remark-only row that are not needed for mobile */
+  tr.remark-only-row td:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) {
+      display: none !important;
+  }
+
 
   td.eta-route-cell { grid-column: 1; display: flex; justify-content: center; align-items: center; }
   td.eta-route-cell span.route-tag { font-size: 1.4em; padding: 6px; min-width: auto; line-height: 1.1; }
@@ -627,7 +846,12 @@ tr.mobile-expansion-row {
   .mobile-eta-item { font-size: 0.95em; line-height: 1.2; padding: 1px 0; display: flex; align-items: center; }
   .mobile-eta-item .remark-symbol-mobile { font-weight: bold; margin-left: 4px; color: var(--primary-color); font-size: 0.9em; }
   .mobile-eta-item.scheduled-eta { opacity: 0.7; font-style: italic; }
-  .mobile-eta-item.eta-item-0 { font-weight: bold; color: var(--primary-color); }
+  .mobile-eta-item.eta-item-0 span:first-child { font-weight: bold; color: var(--primary-color); } /* Target the time span */
+  .mobile-eta-item.eta-item-0.eta-due span:first-child,
+  .mobile-eta-item.eta-item-0.eta-departed span:first-child {
+      color: var(--primary-color); /* Keep primary color for first ETA even if due/departed, class handles style */
+  }
+
 
   tr.mobile-expansion-row { display: none; }
   tr.mobile-expansion-row.is-visible { display: block; }
@@ -640,13 +864,15 @@ tr.mobile-expansion-row {
     border-bottom: 1px solid var(--outline-color);
     border-radius: 0 0 var(--border-radius-medium) var(--border-radius-medium);
     box-shadow: 0 2px 5px var(--shadow-color);
-    /* margin-bottom: 12px; Removed, handled by :last-of-type on the row itself */
   }
   .mobile-expansion-content-item { font-size: 0.9em; padding: 4px 0; color: var(--on-surface-variant-color); border-bottom: 1px dashed color-mix(in srgb, var(--outline-color) 50%, transparent); }
   .mobile-expansion-content-item:last-child { border-bottom: none; }
   .mobile-expansion-content-item .eta-time { font-weight: 500; color: var(--on-surface-color); min-width: 70px; display: inline-block; }
   .mobile-expansion-content-item .remark-text { margin-left: 8px; }
   .mobile-expansion-content-item.scheduled-eta .remark-text { font-style: italic; }
+  .mobile-expansion-content-item.eta-due .eta-time { font-weight: bold; color: var(--primary-color); }
+  .mobile-expansion-content-item.eta-departed .eta-time { text-decoration: line-through; opacity: 0.7; }
+
 
   .container { padding: 15px; border-radius: var(--border-radius-medium); }
   h1 { font-size: 1.6em; }

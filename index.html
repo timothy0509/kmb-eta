@@ -18,14 +18,24 @@
         <h1>KMB Real-Time Bus ETA</h1>
         <div class="theme-switch-wrapper">
           <label class="theme-switch" for="darkModeToggle">
-            <input type="checkbox" id="darkModeToggle" />
+            <input
+              type="checkbox"
+              id="darkModeToggle"
+              role="switch"
+              aria-checked="false"
+            />
             <span class="slider round"></span>
           </label>
           <span class="theme-label">Dark Mode</span>
         </div>
         <div class="theme-switch-wrapper">
           <label class="theme-switch" for="countdownToggle">
-            <input type="checkbox" id="countdownToggle" />
+            <input
+              type="checkbox"
+              id="countdownToggle"
+              role="switch"
+              aria-checked="false"
+            />
             <span class="slider round"></span>
           </label>
           <span class="theme-label">ETA Countdown</span>
@@ -39,7 +49,10 @@
             type="text"
             id="stop-name-input"
             placeholder="e.g., Tsim Sha Tsui or 尖沙咀"
+            aria-autocomplete="list"
+            aria-controls="stop-suggestions"
           />
+          <div id="stop-suggestions" class="autocomplete-suggestions"></div>
         </div>
         <div>
           <label for="route-filter-input">Filter Routes (optional):</label>
@@ -50,18 +63,49 @@
           />
         </div>
         <div class="grouping-control">
-          <input type="checkbox" id="smart-grouping-checkbox" />
+          <input
+            type="checkbox"
+            id="smart-grouping-checkbox"
+            role="switch"
+            aria-checked="false"
+          />
           <label for="smart-grouping-checkbox">Smart Grouping</label>
+          <span
+            class="info-tooltip"
+            title="Groups ETAs from different platforms at the same logical location (e.g., Tsim Sha Tsui Ferry Pier A & B)."
+            >?</span
+          >
         </div>
-        <button id="search-button">Search ETAs</button>
+        <button id="search-button" type="button">Search ETAs</button>
       </div>
 
-      <div id="status-messages"></div>
+      <div id="recent-searches-area">
+        <p><strong>Recent Searches:</strong></p>
+        <ul id="recent-searches-list">
+          <!-- Recent searches will be populated here -->
+        </ul>
+      </div>
+
+      <div id="status-messages" role="status" aria-live="polite"></div>
+      <div class="eta-controls-header">
+        <button id="manual-refresh-button" type="button" style="display: none">
+          Refresh Now
+        </button>
+        <span id="last-updated-timestamp" style="display: none"></span>
+      </div>
       <div id="stop-selection-area"></div>
-      <div id="eta-results-area"></div>
+      <div id="eta-results-area">
+        <!-- ETA results will be populated here -->
+      </div>
       <div id="legend">
         <p><strong>Legend:</strong></p>
         <p><span class="scheduled-eta">Grey Text / Italic</span>: Scheduled Bus</p>
+        <p>
+          <span class="eta-due">Bold Blue</span>: Bus is Due
+        </p>
+        <p>
+          <span class="eta-departed">Strikethrough</span>: Bus has Departed
+        </p>
         <p>
           <span>*, !, ^</span>: See "Remarks" column for details.
         </p>
@@ -73,6 +117,8 @@
       const API_BASE_URL = "https://data.etabus.gov.hk/v1/transport/kmb";
       const STOP_CACHE_KEY = "kmb_stop_data_cache";
       const CACHE_EXPIRY_HOURS = 23; // Cache static data for almost a day
+      const RECENT_SEARCHES_KEY = "kmb_recent_searches";
+      const MAX_RECENT_SEARCHES = 5;
 
       const OVERRIDE_WORDS = new Set([
         "KMB", "LWB", "MTR", "BBI", "PTI", "McDonald's", "HSBC",
@@ -89,12 +135,18 @@
       const etaResultsAreaDiv = document.getElementById("eta-results-area");
       const countdownToggle = document.getElementById('countdownToggle');
       const darkModeToggle = document.getElementById('darkModeToggle');
+      const stopSuggestionsDiv = document.getElementById("stop-suggestions");
+      const recentSearchesList = document.getElementById("recent-searches-list");
+      const manualRefreshButton = document.getElementById("manual-refresh-button");
+      const lastUpdatedTimestampSpan = document.getElementById("last-updated-timestamp");
       
+      let allStopsCache = []; // For autocomplete
       let stopNameCache = {}; // stopId -> {name_en, name_tc}
       let activeEtaCells = []; // For countdown updates
       let countdownUpdateInterval = null;
       let currentSearchContext = null; // For auto-refresh
       let refreshTimers = {}; // { timerId: { timeout: handle, interval: handle } }
+      let autocompleteDebounceTimer = null;
 
       function saveToCache(key, data) {
         const cacheEntry = { timestamp: new Date().getTime(), data: data };
@@ -124,13 +176,11 @@
         const now = new Date().getTime();
         const cacheTime = new Date(cacheEntry.timestamp);
         
-        // API data updates at 05:00 daily. Cache is valid until the next 05:00.
         let nextUpdateTime = new Date(cacheTime);
-        nextUpdateTime.setHours(5, 0, 0, 0); // Set to 05:00 on the cache date
-        if (cacheTime.getHours() >= 5) { // If cache was made on or after 5 AM
-            nextUpdateTime.setDate(nextUpdateTime.getDate() + 1); // Valid until 5 AM next day
+        nextUpdateTime.setHours(5, 0, 0, 0); 
+        if (cacheTime.getHours() >= 5) { 
+            nextUpdateTime.setDate(nextUpdateTime.getDate() + 1); 
         }
-        // If cache was made before 5 AM, it's valid until 5 AM on the same day.
         return now < nextUpdateTime.getTime();
       }
 
@@ -148,7 +198,7 @@
           return data;
         } catch (error) { 
             console.error(`Fetch error for URL ${url}:`, error); 
-            throw error; // Re-throw to be caught by caller
+            throw error; 
         }
       }
 
@@ -156,17 +206,18 @@
         let cached = loadFromCache(STOP_CACHE_KEY);
         if (cached && isCacheValid(cached)) {
           console.log("Using cached stop list.");
-          // Ensure data is in expected array format and processed
-          return Array.isArray(cached.data) ? cached.data.map(entry => entry.name_en ? entry : processStopRouteEntry(entry)) : [];
+          allStopsCache = Array.isArray(cached.data) ? cached.data.map(entry => entry.name_en ? entry : processStopRouteEntry(entry)) : [];
+          return allStopsCache;
         }
         console.log("Fetching fresh stop list...");
         const data = await fetchData(`${API_BASE_URL}/stop`);
-        if (!data || !data.data || !Array.isArray(data.data)) { // Check if data.data is an array
+        if (!data || !data.data || !Array.isArray(data.data)) { 
             console.error("No data received from /stop API or data.data is not an array");
             throw new Error("Failed to fetch stop list: Invalid API response format.");
         }
         const processedData = data.data.map(processStopRouteEntry);
         saveToCache(STOP_CACHE_KEY, processedData);
+        allStopsCache = processedData;
         console.log("Fresh stop list processed and cached.");
         return processedData;
       }
@@ -174,7 +225,7 @@
       async function getStopEta(stopId) {
         console.log(`Fetching ETA for stop ID: ${stopId}`);
         const data = await fetchData(`${API_BASE_URL}/stop-eta/${stopId}`);
-         if (!data || !data.data || !Array.isArray(data.data)) { // Check if data.data is an array
+         if (!data || !data.data || !Array.isArray(data.data)) { 
             console.warn(`No ETA data received for stop ${stopId} or data.data is not an array. Returning empty array.`);
             return [];
         }
@@ -215,7 +266,7 @@
 
       function setStatus(message, type = "info", isUpdate = false) {
         if (isUpdate && type === 'loading') {
-            console.log(`Silent update status: ${message}`); // Log silent updates instead of showing UI
+            console.log(`Silent update status: ${message}`); 
             return;
         }
         statusMessagesDiv.textContent = message;
@@ -263,12 +314,22 @@
         } catch (e) { return "-"; }
       }
 
-      function formatEtaCountdown(isoTimestamp) {
+      function formatEtaCountdown(isoTimestamp, cell) {
         if (!isoTimestamp) return "-";
         const etaTime = new Date(isoTimestamp).getTime();
         const now = new Date().getTime();
         let diff = Math.round((etaTime - now) / 1000); 
-        if (diff <= 0) return diff < -30 ? "Departed" : "Due"; 
+        
+        cell.classList.remove('eta-due', 'eta-departed');
+        if (diff <= 0) {
+            if (diff < -30) {
+                cell.classList.add('eta-departed');
+                return "Departed";
+            } else {
+                cell.classList.add('eta-due');
+                return "Due";
+            }
+        }
         const minutes = Math.floor(diff / 60);
         const seconds = diff % 60;
         return `${minutes}m ${seconds.toString().padStart(2, '0')}s`;
@@ -300,10 +361,10 @@
       function renderEtaTable(stopIdentifier, etasFromApi, isGrouped = false, platformForTitle = null, showCountdown = false) {
         const container = document.createElement("div");
         container.className = "eta-table-container";
-        const title = document.createElement("h3");
-        if (isGrouped) title.textContent = `ETAs for ${stopIdentifier.groupName} ${platformForTitle ? `- Platform: ${platformForTitle}` : ''}`;
-        else title.textContent = `ETAs for ${stopIdentifier.name_en} / ${stopIdentifier.name_tc}`;
-        container.appendChild(title);
+        const titleEl = document.createElement("h3");
+        if (isGrouped) titleEl.textContent = `ETAs for ${stopIdentifier.groupName} ${platformForTitle ? `- Platform: ${platformForTitle}` : ''}`;
+        else titleEl.textContent = `ETAs for ${stopIdentifier.name_en} / ${stopIdentifier.name_tc}`;
+        container.appendChild(titleEl);
 
         if (!etasFromApi || etasFromApi.length === 0) {
           const p = document.createElement("p");
@@ -361,7 +422,7 @@
             const timedEtas = group.timedEtas.sort((a, b) => new Date(a.eta) - new Date(b.eta));
             const allRemarksForDisplayForRow = new Map();
             let rowIsExpandable = false;
-            let expansionDetails = [];
+            let expansionDetails = []; // For mobile expansion content
 
             timedEtas.slice(0, 3).forEach(etaEntry => {
                 if (etaEntry && etaEntry.eta) {
@@ -376,23 +437,28 @@
                     }
                     expansionDetails.push({
                         time: formatEtaTime(etaEntry.eta),
-                        countdown: formatEtaCountdown(etaEntry.eta),
+                        countdown: formatEtaCountdown(etaEntry.eta, document.createElement('span')), // Pass dummy element for initial format
                         isDueOrDeparted: new Date(etaEntry.eta).getTime() <= new Date().getTime(),
                         remark: remarkText,
                         isScheduled: isSched,
                         etaTimestamp: etaEntry.eta
                     });
-                } else if (etaEntry) {
+                } else if (etaEntry) { // Remark only for this specific ETA slot
                      expansionDetails.push({ time: "-", countdown: "-", remark: etaEntry.rmk_en || etaEntry.rmk_tc || "", isScheduled: false, etaTimestamp: null });
                 } else {
-                     expansionDetails.push({ time: "-", countdown: "-", remark: "", isScheduled: false, etaTimestamp: null }); // Placeholder for empty slots
+                     expansionDetails.push({ time: "-", countdown: "-", remark: "", isScheduled: false, etaTimestamp: null }); 
                 }
             });
 
-            if (timedEtas.length > 0) {
+            if (timedEtas.length > 0) { // Render row if there are timed ETAs
                 const row = document.createElement("tr");
                 row.classList.add("eta-data-row");
-                if (rowIsExpandable) row.classList.add("is-expandable");
+                const expansionRowId = `expansion-${group.details.route}-${group.details.dir}-${Date.now()}${Math.random().toString(36).substring(2,7)}`;
+                if (rowIsExpandable) {
+                    row.classList.add("is-expandable");
+                    row.setAttribute("aria-expanded", "false");
+                    row.setAttribute("aria-controls", expansionRowId);
+                }
                 const firstEta = timedEtas[0]; 
                 
                 const routeCell = document.createElement("td");
@@ -429,11 +495,14 @@
                     if (timedEtas[i]) {
                         const isScheduled = timedEtas[i].rmk_en === "Scheduled Bus" || timedEtas[i].rmk_tc === "原定班次";
                         td.dataset.etaTimestamp = timedEtas[i].eta; 
-                        let etaDisplayContent = (showCountdown && !isScheduled && new Date(timedEtas[i].eta) > new Date()) ? formatEtaCountdown(timedEtas[i].eta) : formatEtaTime(timedEtas[i].eta);
+                        let etaDisplayContent = (showCountdown && !isScheduled && new Date(timedEtas[i].eta) > new Date()) ? formatEtaCountdown(timedEtas[i].eta, td) : formatEtaTime(timedEtas[i].eta);
                         let remarkText = timedEtas[i].rmk_en || timedEtas[i].rmk_tc || "";
                         let highlightClass = (i === 0 && timedEtas[i].eta) ? " first-eta-highlight" : "";
                         let displayHtml = `<span class="eta-time-value${highlightClass}">${etaDisplayContent}</span>`;
                         if (isScheduled) td.classList.add("scheduled-eta");
+                        else if (new Date(timedEtas[i].eta).getTime() <= new Date().getTime()) { // Apply due/departed class initially
+                            formatEtaCountdown(timedEtas[i].eta, td); // This will add the class
+                        }
                         if (remarkText && !isScheduled) {
                             const symbol = allRemarksForDisplayForRow.get(remarkText);
                             if(symbol) displayHtml += `<span class="remark-symbol">${symbol}</span>`;
@@ -455,7 +524,12 @@
                         etaItemDiv.dataset.etaTimestamp = etaEntry.eta;
                         const isScheduled = etaEntry.rmk_en === "Scheduled Bus" || etaEntry.rmk_tc === "原定班次";
                         if (isScheduled) etaItemDiv.classList.add("scheduled-eta");
-                        let mobileEtaText = (showCountdown && !isScheduled && new Date(etaEntry.eta) > new Date()) ? formatEtaCountdown(etaEntry.eta) : formatEtaTime(etaEntry.eta);
+                        
+                        let mobileEtaText = (showCountdown && !isScheduled && new Date(etaEntry.eta) > new Date()) ? formatEtaCountdown(etaEntry.eta, etaItemDiv) : formatEtaTime(etaEntry.eta);
+                        if (!isScheduled && new Date(etaEntry.eta).getTime() <= new Date().getTime()) {
+                             formatEtaCountdown(etaEntry.eta, etaItemDiv); // Apply due/departed class
+                        }
+
                         let mobileDisplayHtml = `<span>${mobileEtaText}</span>`;
                         const remarkText = etaEntry.rmk_en || etaEntry.rmk_tc || "";
                         if (remarkText && !isScheduled) {
@@ -481,33 +555,76 @@
                 if (rowIsExpandable) {
                     const expansionRow = document.createElement("tr");
                     expansionRow.className = "mobile-expansion-row";
+                    expansionRow.id = expansionRowId;
                     const expansionCell = document.createElement("td");
                     expansionCell.className = "mobile-expansion-cell";
                     expansionCell.colSpan = headers.length; 
                     
                     expansionDetails.forEach(detail => {
-                        if (!detail.etaTimestamp && !detail.remark) return; // Skip empty placeholders
+                        if (!detail.etaTimestamp && !detail.remark) return; 
                         const itemDiv = document.createElement("div");
                         itemDiv.className = "mobile-expansion-content-item";
                         if (detail.isScheduled) itemDiv.classList.add("scheduled-eta");
-                        let timeToShow = showCountdown && !detail.isScheduled && detail.etaTimestamp && new Date(detail.etaTimestamp) > new Date() ? detail.countdown : detail.time;
-                        if (detail.isDueOrDeparted && !detail.isScheduled && detail.etaTimestamp) timeToShow = detail.countdown;
+                        
+                        let timeToShow = detail.time;
+                        if (showCountdown && !detail.isScheduled && detail.etaTimestamp && new Date(detail.etaTimestamp) > new Date()) {
+                            timeToShow = detail.countdown;
+                        } else if (!detail.isScheduled && detail.etaTimestamp && new Date(detail.etaTimestamp).getTime() <= new Date().getTime()) {
+                            const tempCell = document.createElement('span'); // for class application
+                            timeToShow = formatEtaCountdown(detail.etaTimestamp, tempCell);
+                            if (tempCell.classList.contains('eta-due')) itemDiv.classList.add('eta-due');
+                            if (tempCell.classList.contains('eta-departed')) itemDiv.classList.add('eta-departed');
+                        }
+
                         itemDiv.innerHTML = `<span class="eta-time">${timeToShow}</span> <span class="remark-text">${detail.remark || ""}</span>`;
                         expansionCell.appendChild(itemDiv);
                     });
                     expansionRow.appendChild(expansionCell);
                     fragment.appendChild(expansionRow);
                 }
-            }
-            
-            if (group.remarksOnly.length > 0) {
-                 if (timedEtas.length > 0 && group.remarksOnly.some(r => r.rmk_en || r.rmk_tc || r.rmk_sc)) {
-                    const sepRow = document.createElement("tr");
-                    sepRow.classList.add("eta-separator"); 
-                    const sepCell = document.createElement("td"); sepCell.colSpan = headers.length; 
-                    sepRow.appendChild(sepCell); fragment.appendChild(sepRow);
-                }
-                group.remarksOnly.forEach(remarkEta => { /* ... remark only row logic ... */ });
+            } else if (group.remarksOnly.length > 0) { // Render remark-only row if no timed ETAs but remarks exist
+                group.remarksOnly.forEach(remarkEta => {
+                    if (!(remarkEta.rmk_en || remarkEta.rmk_tc || remarkEta.rmk_sc)) return;
+                    const row = document.createElement("tr");
+                    row.classList.add("remark-only-row");
+
+                    const routeCell = document.createElement("td");
+                    routeCell.classList.add(getRouteColorClass(remarkEta.route));
+                    routeCell.innerHTML = `<span class="route-tag">${formatRouteNumberForDisplay(remarkEta.route)}</span>`;
+                    row.appendChild(routeCell);
+
+                    if (showPlatformColumn) { // Add empty cell if platform column is active
+                        const platCell = document.createElement("td");
+                        platCell.textContent = stopNameCache[remarkEta.stop] ? parsePlatformFromStopName(stopNameCache[remarkEta.stop].name_en).platform || '-' : '-';
+                        row.appendChild(platCell);
+                    }
+                    
+                    const destEnCell = document.createElement("td");
+                    destEnCell.textContent = remarkEta.dest_en || "-";
+                    row.appendChild(destEnCell);
+
+                    const destTcCell = document.createElement("td");
+                    destTcCell.textContent = remarkEta.dest_tc || "-";
+                    row.appendChild(destTcCell);
+                    
+                    // For ETAs 1, 2, 3 - show '-'
+                    for (let i = 0; i < 3; i++) {
+                        const etaTd = document.createElement("td");
+                        etaTd.textContent = "-";
+                        row.appendChild(etaTd);
+                    }
+                    // Mobile ETA cell
+                     const mobileEtaTd = document.createElement("td");
+                     mobileEtaTd.className = "mobile-etas-td-container";
+                     mobileEtaTd.textContent = "-"; // Or more structured placeholder
+                     row.appendChild(mobileEtaTd);
+
+
+                    const remarkContentCell = document.createElement("td");
+                    remarkContentCell.textContent = remarkEta.rmk_en || remarkEta.rmk_tc || remarkEta.rmk_sc;
+                    row.appendChild(remarkContentCell);
+                    fragment.appendChild(row);
+                });
             }
         });
         tbody.appendChild(fragment);
@@ -523,7 +640,7 @@
             if (stopDetails) {
                 const platformInfo = parsePlatformFromStopName(stopDetails.name_en);
                 if (platformInfo.platform) platformsInUse.add(platformInfo.platform);
-                else platformsInUse.add(`no_platform_${eta.stop}`); // Treat no platform as distinct
+                else platformsInUse.add(`no_platform_${eta.stop}`); 
             }
         });
         return platformsInUse.size > 1;
@@ -535,15 +652,21 @@
         document.querySelectorAll('#eta-results-area td.desktop-eta-cell[data-eta-timestamp], #eta-results-area .mobile-eta-item[data-eta-timestamp]').forEach(cell => {
             const timestamp = cell.dataset.etaTimestamp;
             const isScheduled = cell.classList.contains("scheduled-eta");
-            const timeValueElement = cell.classList.contains("mobile-eta-item") ? cell.querySelector('span') : cell.querySelector('.eta-time-value'); // Target inner span for mobile too
+            const timeValueElement = cell.classList.contains("mobile-eta-item") ? cell.querySelector('span') : cell.querySelector('.eta-time-value'); 
 
             if (timestamp && timeValueElement) {
                 const etaDate = new Date(timestamp);
+                cell.classList.remove('eta-due', 'eta-departed'); // Clear previous states
+
                 if (showCountdown && !isScheduled && etaDate > new Date()) {
-                    timeValueElement.textContent = formatEtaCountdown(timestamp);
+                    timeValueElement.textContent = formatEtaCountdown(timestamp, cell);
                     activeEtaCells.push(cell); 
                 } else {
                     timeValueElement.textContent = formatEtaTime(timestamp);
+                    if (!isScheduled && etaDate <= new Date()) { // Apply due/departed for non-countdown times
+                        formatEtaCountdown(timestamp, cell); // This will add class and set text like "Due" or "Departed"
+                        timeValueElement.textContent = formatEtaCountdown(timestamp, cell); // Update text
+                    }
                 }
             }
         });
@@ -583,15 +706,29 @@
             console.log(`Cleared refresh timer for ${timerId}`);
         }
       }
+      
+      function updateLastUpdatedTimestamp() {
+        lastUpdatedTimestampSpan.textContent = `Last updated: ${new Date().toLocaleTimeString('en-GB')}`;
+        lastUpdatedTimestampSpan.style.display = 'inline';
+        manualRefreshButton.style.display = 'inline-block';
+      }
 
-      async function handleSearch() {
+      async function handleSearch(isFromRecent = false) {
         const stopQuery = stopNameInput.value.trim();
-        const routeFilters = routeFilterInput.value.trim().toUpperCase().split(',').filter(r => r);
+        const routeFiltersRaw = routeFilterInput.value.trim();
+        const routeFilters = routeFiltersRaw.toUpperCase().split(',').filter(r => r);
         const useSmartGrouping = smartGroupingCheckbox.checked;
 
         if (!stopQuery) { setStatus("Please enter a bus stop name.", "error"); return; }
         
-        etaResultsAreaDiv.innerHTML = ""; stopSelectionAreaDiv.innerHTML = ""; 
+        // Add to recent searches if it's a new manual search
+        if (!isFromRecent && stopQuery) {
+            addRecentSearch(stopQuery, routeFiltersRaw, useSmartGrouping);
+            renderRecentSearches();
+        }
+
+        etaResultsAreaDiv.innerHTML = `<div class="loading-placeholder">Searching for ETAs... <div class="spinner"></div></div>`; // Loading skeleton/placeholder
+        stopSelectionAreaDiv.innerHTML = ""; 
         activeEtaCells = []; 
         stopCountdownUpdater(); 
         clearRefreshTimer('mainSearch');
@@ -599,7 +736,7 @@
         setStatus("Searching...", "loading");
 
         try {
-          const allStops = await getStopList();
+          const allStops = await getStopList(); // Ensure allStopsCache is populated
           stopNameCache = {}; 
           allStops.forEach(s => stopNameCache[s.stop] = {name_en: s.name_en, name_tc: s.name_tc});
           const lowerStopQuery = stopQuery.toLowerCase();
@@ -610,15 +747,23 @@
           );
           matchedStops.sort((a,b) => (a.name_en || "").localeCompare(b.name_en || ""));
 
-          if (matchedStops.length === 0) { setStatus("No stops found matching your query.", "info"); return; }
+          etaResultsAreaDiv.innerHTML = ""; // Clear placeholder before rendering results
+
+          if (matchedStops.length === 0) { 
+            setStatus(`No stops found matching "${stopQuery}".`, "info"); 
+            lastUpdatedTimestampSpan.style.display = 'none';
+            manualRefreshButton.style.display = 'none';
+            return; 
+          }
           
           if (useSmartGrouping) {
             currentSearchContext.type = 'smartGroup';
             const groupedByBaseName = {};
             matchedStops.forEach(stop => {
                 const { baseName } = parsePlatformFromStopName(stop.name_en);
-                if (!groupedByBaseName[baseName]) groupedByBaseName[baseName] = { groupName: baseName, stops: [] };
-                groupedByBaseName[baseName].stops.push(stop);
+                const groupKey = baseName || stop.name_en; // Fallback if baseName is null
+                if (!groupedByBaseName[groupKey]) groupedByBaseName[groupKey] = { groupName: groupKey, stops: [] };
+                groupedByBaseName[groupKey].stops.push(stop);
             });
             currentSearchContext.data = groupedByBaseName;
             for (const groupKey in groupedByBaseName) {
@@ -631,9 +776,7 @@
                 if (routeFilters.length > 0) {
                     allEtasForGroup = allEtasForGroup.filter(eta => routeFilters.includes(eta.route.toUpperCase()));
                 }
-                if (allEtasForGroup.length > 0 || group.stops.length > 0) {
-                     renderEtaTable(group, allEtasForGroup, true, null, countdownToggle.checked);
-                }
+                renderEtaTable(group, allEtasForGroup, true, null, countdownToggle.checked);
             }
           } else {
             currentSearchContext.type = 'individual';
@@ -647,9 +790,15 @@
           }
           
           if (etaResultsAreaDiv.innerHTML === "") {
-            setStatus("No ETA data found for your query/filters.", "info");
+            let message = `No ETA data found for "${stopQuery}"`;
+            if (routeFilters.length > 0) message += ` with route filter(s): ${routeFilters.join(', ')}`;
+            message += ".";
+            setStatus(message, "info");
+            lastUpdatedTimestampSpan.style.display = 'none';
+            manualRefreshButton.style.display = 'none';
           } else {
             clearStatus();
+            updateLastUpdatedTimestamp();
             scheduleNextMinuteRefresh(refreshCurrentEtas, 'mainSearch');
           }
           setupMarquees(); 
@@ -657,34 +806,40 @@
         } catch (error) {
           console.error("Error in handleSearch:", error);
           setStatus(`Search Error: ${error.message}. Check console.`, "error");
+          etaResultsAreaDiv.innerHTML = ""; // Clear loading placeholder on error
+          lastUpdatedTimestampSpan.style.display = 'none';
+          manualRefreshButton.style.display = 'none';
         }
       }
 
       async function refreshCurrentEtas(isSilent = true) {
-        if (!currentSearchContext || !currentSearchContext.type || etaResultsAreaDiv.innerHTML === "") {
+        if (!currentSearchContext || !currentSearchContext.type || (!isSilent && etaResultsAreaDiv.innerHTML === "")) {
             clearRefreshTimer('mainSearch');
+            if (!isSilent) {
+                setStatus("No active search to refresh.", "info");
+                lastUpdatedTimestampSpan.style.display = 'none';
+                manualRefreshButton.style.display = 'none';
+            }
             return;
         }
-        setStatus("Refreshing ETAs...", "loading", isSilent); // Pass isSilent
+        if (!isSilent) {
+            etaResultsAreaDiv.innerHTML = `<div class="loading-placeholder">Refreshing ETAs... <div class="spinner"></div></div>`;
+        }
+        setStatus("Refreshing ETAs...", "loading", isSilent); 
 
         try {
-            const { routeFilters, useSmartGrouping, type, data } = currentSearchContext;
-            // Store scroll position
+            const { stopQuery, routeFilters, useSmartGrouping, type, data } = currentSearchContext;
             const scrollPositions = {};
             document.querySelectorAll('.eta-table-container').forEach(container => {
-                const id = container.querySelector('h3').textContent; // Or a data-id
-                scrollPositions[id] = container.scrollTop;
+                const titleEl = container.querySelector('h3');
+                if (titleEl) scrollPositions[titleEl.textContent] = container.scrollTop;
             });
             
-            etaResultsAreaDiv.innerHTML = ""; 
+            if (!isSilent) etaResultsAreaDiv.innerHTML = ""; // Clear only if not silent, otherwise it's handled by render
+            else etaResultsAreaDiv.innerHTML = ""; // Always clear for refresh to avoid duplicate content
+
             activeEtaCells = []; 
 
-            if (type === 'smartGroup' && data) {
-                for (const groupKey in data) { /* ... re-render logic ... */ }
-            } else if (type === 'individual' && data) { 
-                for (const stop of data) { /* ... re-render logic ... */ }
-            }
-            // Re-rendering logic (simplified for brevity, ensure it's complete in your actual code)
             if (type === 'smartGroup' && data) {
                 for (const groupKey in data) {
                     const group = data[groupKey];
@@ -703,22 +858,23 @@
                 }
             }
             
-            // Restore scroll position
             document.querySelectorAll('.eta-table-container').forEach(container => {
-                const id = container.querySelector('h3').textContent;
-                if (scrollPositions[id] !== undefined) {
-                    container.scrollTop = scrollPositions[id];
+                const titleEl = container.querySelector('h3');
+                if (titleEl && scrollPositions[titleEl.textContent] !== undefined) {
+                    container.scrollTop = scrollPositions[titleEl.textContent];
                 }
             });
 
             setupMarquees();
             updateDisplayedEtaFormat();
+            updateLastUpdatedTimestamp();
             if (isSilent || statusMessagesDiv.textContent.includes("Refreshing ETAs...")) {
                 clearStatus();
             }
         } catch (error) {
             console.error("Error during auto-refresh:", error);
             setStatus("Error refreshing ETAs.", "error", isSilent);
+            if (!isSilent) etaResultsAreaDiv.innerHTML = ""; // Clear loading placeholder
         }
       }
 
@@ -733,13 +889,9 @@
               
               if (timestamp && targetElement && !cell.classList.contains('scheduled-eta')) {
                 const etaDate = new Date(timestamp);
-                if (etaDate > new Date()) {
-                    targetElement.textContent = formatEtaCountdown(timestamp);
-                } else {
-                    const now = new Date().getTime();
-                    let diff = Math.round((etaDate.getTime() - now) / 1000);
-                    targetElement.textContent = diff < -30 ? "Departed" : "Due";
-                    return false; 
+                targetElement.textContent = formatEtaCountdown(timestamp, cell); // formatEtaCountdown now handles class and text
+                if (etaDate <= new Date()) { // If due or departed
+                    return false; // Remove from active countdown
                 }
               } else if (cell.classList.contains('scheduled-eta')) {
                   return false; 
@@ -756,40 +908,174 @@
         countdownUpdateInterval = null;
       }
 
-      searchButton.addEventListener("click", handleSearch);
-      stopNameInput.addEventListener("keypress", (event) => { if (event.key === "Enter") handleSearch(); });
-      routeFilterInput.addEventListener("keypress", (event) => { if (event.key === "Enter") handleSearch(); });
-      
-      darkModeToggle.addEventListener('change', (event) => { setDarkMode(event.target.checked); });
-      countdownToggle.addEventListener('change', (event) => { setCountdownMode(event.target.checked); });
+      // Autocomplete Functions
+      function showSuggestions(query) {
+        stopSuggestionsDiv.innerHTML = "";
+        if (!query || !allStopsCache.length) {
+            stopSuggestionsDiv.style.display = "none";
+            return;
+        }
+        const lowerQuery = query.toLowerCase();
+        const filtered = allStopsCache.filter(stop =>
+            (stop.name_en && stop.name_en.toLowerCase().includes(lowerQuery)) ||
+            (stop.name_tc && stop.name_tc.includes(query))
+        ).slice(0, 7); // Limit suggestions
 
-      etaResultsAreaDiv.addEventListener('dblclick', function(event) {
+        if (filtered.length) {
+            filtered.forEach(stop => {
+                const div = document.createElement("div");
+                div.textContent = `${stop.name_en} / ${stop.name_tc}`;
+                div.addEventListener("click", () => {
+                    stopNameInput.value = stop.name_en; // Or whichever user prefers
+                    stopSuggestionsDiv.style.display = "none";
+                    handleSearch();
+                });
+                stopSuggestionsDiv.appendChild(div);
+            });
+            stopSuggestionsDiv.style.display = "block";
+        } else {
+            stopSuggestionsDiv.style.display = "none";
+        }
+      }
+      
+      // Recent Searches Functions
+      function getRecentSearches() {
+        return loadSetting(RECENT_SEARCHES_KEY, []);
+      }
+
+      function addRecentSearch(stopQuery, routeFiltersRaw, useSmartGrouping) {
+        let searches = getRecentSearches();
+        const newSearch = { stopQuery, routeFiltersRaw, useSmartGrouping, timestamp: Date.now() };
+        // Remove if already exists to move it to the top
+        searches = searches.filter(s => !(s.stopQuery === stopQuery && s.routeFiltersRaw === routeFiltersRaw && s.useSmartGrouping === useSmartGrouping));
+        searches.unshift(newSearch);
+        if (searches.length > MAX_RECENT_SEARCHES) {
+            searches.pop();
+        }
+        saveSetting(RECENT_SEARCHES_KEY, searches);
+      }
+
+      function renderRecentSearches() {
+        recentSearchesList.innerHTML = "";
+        const searches = getRecentSearches();
+        if (searches.length === 0) {
+            document.getElementById("recent-searches-area").style.display = "none";
+            return;
+        }
+        document.getElementById("recent-searches-area").style.display = "block";
+        searches.forEach(search => {
+            const li = document.createElement("li");
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "recent-search-item";
+            let text = `"${search.stopQuery}"`;
+            if (search.routeFiltersRaw) text += ` (Routes: ${search.routeFiltersRaw})`;
+            if (search.useSmartGrouping) text += ` [Smart Grouping]`;
+            button.textContent = text;
+            button.addEventListener("click", () => {
+                stopNameInput.value = search.stopQuery;
+                routeFilterInput.value = search.routeFiltersRaw;
+                smartGroupingCheckbox.checked = search.useSmartGrouping;
+                handleSearch(true); // Pass true to indicate it's from recent
+            });
+            li.appendChild(button);
+            recentSearchesList.appendChild(li);
+        });
+      }
+
+
+      // Event Listeners
+      searchButton.addEventListener("click", () => handleSearch(false));
+      stopNameInput.addEventListener("keypress", (event) => { if (event.key === "Enter") handleSearch(false); });
+      routeFilterInput.addEventListener("keypress", (event) => { if (event.key === "Enter") handleSearch(false); });
+      
+      darkModeToggle.addEventListener('change', (event) => { 
+        setDarkMode(event.target.checked); 
+        event.target.setAttribute('aria-checked', event.target.checked);
+      });
+      countdownToggle.addEventListener('change', (event) => { 
+        setCountdownMode(event.target.checked); 
+        event.target.setAttribute('aria-checked', event.target.checked);
+      });
+      smartGroupingCheckbox.addEventListener('change', (event) => {
+        saveSetting('smartGrouping', event.target.checked);
+        event.target.setAttribute('aria-checked', event.target.checked);
+      });
+      manualRefreshButton.addEventListener('click', () => refreshCurrentEtas(false));
+
+
+      etaResultsAreaDiv.addEventListener('click', function(event) { // Changed to single click
         const row = event.target.closest('tr.eta-data-row.is-expandable');
         if (!row) return;
         const expansionRow = row.nextElementSibling;
         if (expansionRow && expansionRow.classList.contains('mobile-expansion-row')) {
             const isVisible = expansionRow.classList.toggle('is-visible');
             row.classList.toggle('is-expanded', isVisible);
+            row.setAttribute('aria-expanded', isVisible);
         }
       });
       
+      stopNameInput.addEventListener("input", (e) => {
+        clearTimeout(autocompleteDebounceTimer);
+        autocompleteDebounceTimer = setTimeout(() => {
+            showSuggestions(e.target.value);
+        }, 300);
+      });
+      document.addEventListener("click", (e) => { // Hide suggestions when clicking outside
+        if (!stopNameInput.contains(e.target) && !stopSuggestionsDiv.contains(e.target)) {
+            stopSuggestionsDiv.style.display = "none";
+        }
+      });
+
       function setDarkMode(isDark) {
         document.body.classList.toggle('dark-mode', isDark);
         saveSetting('theme', isDark ? 'dark' : 'light');
-        if (darkModeToggle) darkModeToggle.checked = isDark;
+        if (darkModeToggle) {
+          darkModeToggle.checked = isDark;
+          darkModeToggle.setAttribute('aria-checked', isDark);
+        }
       }
 
       function setCountdownMode(showCountdown) {
         saveSetting('showCountdown', showCountdown);
-        if(countdownToggle) countdownToggle.checked = showCountdown;
+        if(countdownToggle) {
+          countdownToggle.checked = showCountdown;
+          countdownToggle.setAttribute('aria-checked', showCountdown);
+        }
         updateDisplayedEtaFormat(); 
       }
       
-      const savedTheme = loadSetting('theme', (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light');
-      setDarkMode(savedTheme === 'dark');
-      const savedCountdownPreference = loadSetting('showCountdown', false); 
-      setCountdownMode(savedCountdownPreference);
-      setStatus("Enter a stop name to begin.", "info");
+      // Initial Load
+      async function initializeApp() {
+        const savedTheme = loadSetting('theme', (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light');
+        setDarkMode(savedTheme === 'dark');
+        
+        const savedCountdownPreference = loadSetting('showCountdown', false); 
+        setCountdownMode(savedCountdownPreference);
+
+        const savedSmartGrouping = loadSetting('smartGrouping', false);
+        smartGroupingCheckbox.checked = savedSmartGrouping;
+        smartGroupingCheckbox.setAttribute('aria-checked', savedSmartGrouping);
+
+        const savedRouteFilters = loadSetting('routeFilters', '');
+        routeFilterInput.value = savedRouteFilters;
+        
+        routeFilterInput.addEventListener('change', (event) => { // Save route filters on change
+            saveSetting('routeFilters', event.target.value);
+        });
+
+        setStatus("Enter a stop name to begin, or select a recent search.", "info");
+        try {
+            await getStopList(); // Pre-fetch stop list for autocomplete
+        } catch (error) {
+            console.error("Failed to pre-fetch stop list on init:", error);
+            setStatus("Could not load initial stop data. Autocomplete may be affected.", "error");
+        }
+        renderRecentSearches();
+      }
+
+      initializeApp();
+
     </script>
     <footer> <p>Made by Timothy</p> </footer>
   </body>
