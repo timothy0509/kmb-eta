@@ -4,7 +4,7 @@ A web-based tool to fetch and display real-time Estimated Time of Arrival (ETA) 
 
 ## Live Demo
 
-You can access the live versions here (assuming standard GitHub Pages deployment):
+You can access the live versions here:
 
 *   **General ETA Search:** `https://eta.hkjc.uk`
 *   **Pak Hung House ETA:** `https://eta.hkjc.uk/singyin`
