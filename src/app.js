@@ -72,24 +72,25 @@ let stopListCache = null,
     refreshTimer  = null,
     hasBuilt      = false;
 
-// Fetch & cache full stop list
+// Fetch all stops (cached)
 async function getStops() {
   if (!stopListCache) {
-    const res = await fetch(API.STOP_LIST),
-          json = await res.json();
-    stopListCache = json.data || [];
+    const r = await fetch(API.STOP_LIST),
+          j = await r.json();
+    stopListCache = j.data || [];
   }
   return stopListCache;
 }
 
-// Fetch ETAs for a stop ID
+// Fetch ETAs for a stop
 async function getETAs(id) {
-  const res = await fetch(API.STOP_ETA(id)),
-        json = await res.json();
-  return json.data || [];
+  const r = await fetch(API.STOP_ETA(id)),
+        j = await r.json();
+  return j.data || [];
 }
 
-// Extract title, platform, stopCode from any-language name
+// Extract title, platform, stopCode from any-language stop name,
+// with fallback to English for stopCode if missing.
 function parseStopInfo(name) {
   let title = name,
       platform = '',
@@ -97,69 +98,70 @@ function parseStopInfo(name) {
   const regex = /[\(（]([^\)）]*)[\)）]/g;
   let m;
   while ((m = regex.exec(name)) !== null) {
-    const raw   = m[0],
+    const raw = m[0],
           inner = m[1].trim(),
-          upper = inner.toUpperCase();
-    if (!platform && /^[A-Z]\d{1,2}$/.test(upper)) {
-      platform = upper;
+          up = inner.toUpperCase();
+    if (!platform && /^[A-Z]\d{1,2}$/.test(up)) {
+      platform = up;
       title = title.replace(raw, '');
-    }
-    else if (!stopCode && /^[A-Z]{2}\d{3}$/.test(upper)) {
-      stopCode = upper;
+    } else if (!stopCode && /^[A-Z]{2}\d{3}$/.test(up)) {
+      stopCode = up;
       title = title.replace(raw, '');
     }
   }
   return { title: title.trim(), platform, stopCode };
 }
 
-// Format ISO timestamp → HH:MM:SS (24-hour)
+// Format ISO timestamp to HH:MM:SS
 function formatTimeOnly(iso) {
   return iso
-    ? new Date(iso).toLocaleTimeString('en-GB',{
+    ? new Date(iso).toLocaleTimeString('en-GB', {
         hour12: false,
-        hour:    '2-digit',
-        minute:  '2-digit',
-        second:  '2-digit'
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
       })
     : '';
 }
 
-// Parse route string for sorting
-function parseRouteStr(r) {
-  const m = r.match(/^([A-Za-z]*)(\d+)([A-Za-z]*)$/);
+// Parse route into prefix/number/suffix for sorting
+function parseRouteStr(rt) {
+  const m = rt.match(/^([A-Za-z]*)(\d+)([A-Za-z]*)$/);
   return m
     ? { prefix: m[1], num: +m[2], suffix: m[3] }
-    : { prefix: r, num: 0, suffix: '' };
+    : { prefix: rt, num: 0, suffix: '' };
 }
 
-// Compare two route rows
+// Compare two routes
 function compareRoute(a,b) {
   const x = parseRouteStr(a.route),
         y = parseRouteStr(b.route);
-  if (x.prefix !== y.prefix) return x.prefix.localeCompare(y.prefix);
-  if (x.num !== y.num)       return x.num - y.num;
+  if (x.prefix !== y.prefix)
+    return x.prefix.localeCompare(y.prefix);
+  if (x.num !== y.num)
+    return x.num - y.num;
   return x.suffix.localeCompare(y.suffix);
 }
 
-// CSS class for route tags
+// Determine CSS class for route tag
 function routeTagClass(r) {
   const up = r.toUpperCase(),
         { prefix, num } = parseRouteStr(up);
-  if (prefix==='A')         return 'route-A';
-  if (/^[ES]/.test(prefix)) return 'route-ES';
-  if (prefix==='HK')        return 'route-HK';
-  if (prefix==='N')         return 'route-N';
-  if (num>=100&&num<200)    return 'route-1XX';
-  if (num>=600&&num<700)    return 'route-6XX';
-  if (num>=900&&num<1000)
-    return prefix==='P'?'route-P9XX':'route-9XX';
+  if (prefix === 'A')         return 'route-A';
+  if (/^[ES]/.test(prefix))   return 'route-ES';
+  if (prefix === 'HK')        return 'route-HK';
+  if (prefix === 'N')         return 'route-N';
+  if (num >= 100 && num < 200) return 'route-1XX';
+  if (num >= 600 && num < 700) return 'route-6XX';
+  if (num >= 900 && num < 1000)
+    return prefix === 'P' ? 'route-P9XX' : 'route-9XX';
   return 'route-normal';
 }
 
-// Update text labels/placeholders/button per current language
+// Update text labels based on selected language
 function updateUIText() {
   const lang = document.getElementById('langSelect').value,
-        L    = LANGS[lang];
+        L = LANGS[lang];
   document.getElementById('labelStopName').textContent =
     L.stopNameLabel;
   document.getElementById('stopName').placeholder =
@@ -172,12 +174,12 @@ function updateUIText() {
     L.searchButton;
 }
 
-// Mobile vs desktop check
+// Check mobile breakpoint
 function isMobile() {
   return window.innerWidth <= 576;
 }
 
-// Main UI build
+// Main build: fetch, filter, group, render
 async function initialBuild() {
   if (refreshTimer) clearInterval(refreshTimer);
   rowsData = [];
@@ -205,23 +207,20 @@ async function initialBuild() {
     return;
   }
 
-  // Group by cleaned title
+  // Group stops by cleaned title
   const groups = {};
   matches.forEach(s => {
-    // parse in selected language
-    const full = s[`name_${lang}`];
-    const info = parseStopInfo(full);
-
-    // fallback stopCode from English if missing
-    if (!info.stopCode) {
+    const fullName = s[`name_${lang}`];
+    let { title, platform, stopCode } = parseStopInfo(fullName);
+    // fallback stopCode from English name if missing
+    if (!stopCode) {
       const enInfo = parseStopInfo(s.name_en);
-      info.stopCode = enInfo.stopCode;
+      stopCode = enInfo.stopCode;
     }
-
-    (groups[info.title] = groups[info.title]||[]).push({
-      stopId:   s.stop,
-      platform: info.platform,
-      stopCode: info.stopCode
+    (groups[title] = groups[title]||[]).push({
+      stopId: s.stop,
+      platform,
+      stopCode
     });
   });
 
@@ -229,24 +228,24 @@ async function initialBuild() {
   for (const [title, infos] of Object.entries(groups)) {
     let rows = [];
 
-    // gather rows
+    // Gather row data
     for (const info of infos) {
       const data = await getETAs(info.stopId),
             list = filter.length
               ? data.filter(e=>filter.includes(e.route.toUpperCase()))
               : data;
 
-      // group by route+dest
+      // Group ETAs by route+dest
       const byKey = {};
       list.forEach(e => {
-        const k = `${e.route}|${e.dest_en}`;
-        (byKey[k] = byKey[k]||[]).push(e);
+        const key = `${e.route}|${e.dest_en}`;
+        (byKey[key] = byKey[key]||[]).push(e);
       });
 
       Object.values(byKey).forEach(ent => {
-        ent.sort((a,b)=>a.eta_seq-b.eta_seq);
+        ent.sort((a,b)=>a.eta_seq - b.eta_seq);
 
-        // pick single service type 1→2→3, else any live
+        // Pick one service type (1→2→3) that has live ETAs
         const svcOrder = ['1','2','3'];
         let chosen = [];
         for (const svc of svcOrder) {
@@ -255,64 +254,76 @@ async function initialBuild() {
           );
           if (tmp.length) { chosen = tmp; break; }
         }
+        // fallback to any live ETAs
         if (!chosen.length) chosen = ent.filter(e=>e.eta);
         const source = chosen.length ? chosen : ent;
+
+        // take up to 3 arrivals
         const sliced = [
-          source[0]||{}, source[1]||{}, source[2]||{}
+          source[0]||{},
+          source[1]||{},
+          source[2]||{}
         ];
-        const base   = source[0]||ent[0]||{};
+        const base = source[0]||ent[0]||{};
+
+        // build two remark sets:
+        // numberedRemarks for live rows, noetaRemarks for no-ETA fallback
+        const numberedRemarks = sliced
+          .filter(e=>e.eta && e.rmk_en!=='Scheduled Bus' && e[`rmk_${suffix}`])
+          .map(e=>`ETA${e.eta_seq}: ${e[`rmk_${suffix}`]}`);
+
+        const noetaRemarks = ent
+          .filter(e=> e[`rmk_${suffix}`] && e.rmk_en!=='Scheduled Bus')
+          .map(e=>e[`rmk_${suffix}`]);
 
         rows.push({
-          stopId:   info.stopId,
-          route:    base.route,
-          dest:     base[`dest_${suffix}`],
-          platform: info.platform,
-          stopCode: info.stopCode,
-          etas:     sliced,
-          remarks:  sliced
-            .filter(e=>
-              e.eta &&
-              e.rmk_en!=='Scheduled Bus' &&
-              e[`rmk_${suffix}`]
-            )
-            .map(e=>
-              `ETA${e.eta_seq}: ${e[`rmk_${suffix}`]}`
-            )
+          stopId:        info.stopId,
+          route:         base.route,
+          dest:          base[`dest_${suffix}`],
+          platform:      info.platform,
+          stopCode:      info.stopCode,
+          etas:          sliced,
+          numberedRemarks,
+          noetaRemarks
         });
       });
     }
 
-    // sort live first, then route
+    // sort rows (live first, then route)
     rows.sort((a,b)=>{
-      const aL = a.etas.some(e=>e.eta),
-            bL = b.etas.some(e=>e.eta);
-      if (aL!==bL) return aL?-1:1;
+      const aLive = a.etas.some(e=>e.eta),
+            bLive = b.etas.some(e=>e.eta);
+      if (aLive !== bLive) return aLive ? -1 : 1;
       return compareRoute(a,b);
     });
 
-    // group heading
+    // Group header
     const h3 = document.createElement('h3');
     h3.textContent = title;
     results.appendChild(h3);
 
+    // Render mobile or desktop
     if (isMobile()) {
-      // mobile cards
+      // Mobile cards
       rows.forEach(r => {
         const card = document.createElement('div');
         card.className = 'mobile-card fade-in';
 
+        // route
         const c1 = document.createElement('div');
         c1.className = 'mobile-route';
         const tag = document.createElement('span');
-        tag.className = 'route-tag '+routeTagClass(r.route);
+        tag.className = 'route-tag ' + routeTagClass(r.route);
         tag.textContent = r.route;
         c1.appendChild(tag);
 
+        // dest
         const c2 = document.createElement('div');
         c2.className = 'mobile-dest' +
           (r.etas.every(e=>!e.eta)?' mobile-noeta-text':'');
         c2.textContent = r.dest;
 
+        // times / remark
         const c3 = document.createElement('div');
         c3.className = 'mobile-times';
         if (r.etas.some(e=>e.eta)) {
@@ -324,9 +335,15 @@ async function initialBuild() {
             d.textContent = formatTimeOnly(e.eta);
             c3.appendChild(d);
           });
+        } else {
+          const txt = r.noetaRemarks[0] || L.noEtas;
+          const d   = document.createElement('div');
+          d.className = 'mobile-noeta';
+          d.textContent = txt;
+          c3.appendChild(d);
         }
 
-        card.append(c1,c2,c3);
+        card.append(c1, c2, c3);
         results.appendChild(card);
 
         rowsData.push({
@@ -336,14 +353,14 @@ async function initialBuild() {
         });
       });
     } else {
-      // desktop table
-      const wrap = document.createElement('div');
+      // Desktop table
+      const wrap  = document.createElement('div');
       wrap.className = 'eta-table-container';
       const table = document.createElement('table');
       table.className = 'eta-results';
 
       const showPlat = rows.some(r=>r.platform);
-      const hdrs = [
+      const headers = [
         LANGS[lang].tableHeaders.Route,
         LANGS[lang].tableHeaders.Destination,
         ...(showPlat?[LANGS[lang].tableHeaders.Platform]:[]),
@@ -353,13 +370,12 @@ async function initialBuild() {
         LANGS[lang].tableHeaders.ETA3,
         LANGS[lang].tableHeaders.Remarks
       ];
-      table.innerHTML =
-        `<thead><tr>${hdrs.map(h=>`<th>${h}</th>`).join('')}</tr></thead>`;
+      table.innerHTML = `<thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead>`;
 
       const tbody = document.createElement('tbody');
-      rows.forEach(r=>{
+      rows.forEach(r => {
         const noEta = !r.etas.some(e=>e.eta);
-        const tr = document.createElement('tr');
+        const tr    = document.createElement('tr');
         tr.className = noEta
           ? 'no-eta-row eta-data-row'
           : 'eta-data-row';
@@ -387,32 +403,36 @@ async function initialBuild() {
           tr.appendChild(tdP);
         }
 
-        // stopCode
+        // stop code
         const tdC = document.createElement('td');
         tdC.textContent = r.stopCode;
         if (noEta) tdC.classList.add('no-eta-text');
         tr.appendChild(tdC);
 
         if (noEta) {
+          // remark-only
           const tdR = document.createElement('td');
-          tdR.colSpan = 4 + (showPlat?1:0);
+          tdR.colSpan   = 4 + (showPlat?1:0);
           tdR.className = 'remark-only-cell';
-          tdR.textContent = r.remarks[0]||L.noEtas;
+          tdR.textContent = r.noetaRemarks[0] || L.noEtas;
           tr.appendChild(tdR);
         } else {
+          // ETAs
           const etaCells = [];
-          r.etas.forEach((e,i)=>{
+          r.etas.forEach((e,i) => {
             const td = document.createElement('td');
             td.className =
               'desktop-eta-cell'+(i===0?' eta-first':'');
             td.textContent = formatTimeOnly(e.eta);
-            if (i>0&&e.rmk_en==='Scheduled Bus')
+            if (i>0 && e.rmk_en==='Scheduled Bus')
               td.classList.add('scheduled-eta');
             tr.appendChild(td);
             etaCells.push(td);
           });
+
+          // remarks
           const tdR = document.createElement('td');
-          tdR.textContent = r.remarks.join('; ');
+          tdR.textContent = r.numberedRemarks.join('; ');
           tr.appendChild(tdR);
 
           rowsData.push({
@@ -436,13 +456,13 @@ async function initialBuild() {
   refreshTimer = setInterval(refreshEtas, 30000);
 }
 
-// Auto-refresh ETAs & remarks
+// Auto-refresh ETA cells & remarks only
 async function refreshEtas() {
   for (const rd of rowsData) {
     const raw = await getETAs(rd.stopId);
     let ent = raw
       .filter(e=>e.route===rd.route)
-      .sort((a,b)=>a.eta_seq-b.eta_seq);
+      .sort((a,b)=>a.eta_seq - b.eta_seq);
 
     const svcOrder = ['1','2','3'];
     let chosen = [];
@@ -453,7 +473,7 @@ async function refreshEtas() {
       if (tmp.length) { chosen = tmp; break; }
     }
     if (!chosen.length) chosen = ent.filter(e=>e.eta);
-    const source = chosen.length?chosen:ent;
+    const source = chosen.length ? chosen : ent;
     const newEtas = [
       source[0]||{}, source[1]||{}, source[2]||{}
     ];
@@ -465,14 +485,16 @@ async function refreshEtas() {
           const d = document.createElement('div');
           d.className =
             'eta-time'+(i===0?' eta-first':'');
-          if (i>0&&e.rmk_en==='Scheduled Bus')
+          if (i>0 && e.rmk_en==='Scheduled Bus')
             d.classList.add('scheduled-eta');
           d.textContent = formatTimeOnly(e.eta);
           rd.mobileContainer.appendChild(d);
         });
+      } else {
+        // no remarks on mobile if no ETAs
       }
     } else {
-      // desktop ETAs
+      // update ETAs
       newEtas.forEach((e,i)=>{
         const td = rd.etaCells[i],
               txt = formatTimeOnly(e.eta);
@@ -486,18 +508,26 @@ async function refreshEtas() {
         else td.classList.remove('scheduled-eta');
       });
 
-      // desktop remarks
+      // update remarks
       const lang = document.getElementById('langSelect').value,
             suffix = SUFFIX[lang];
-      const remarksArr = newEtas
-        .filter(e=>
-          e.eta &&
-          e.rmk_en!=='Scheduled Bus' &&
-          e[`rmk_${suffix}`]
-        )
+
+      const liveRemarks = newEtas
+        .filter(e=>e.eta && e.rmk_en!=='Scheduled Bus' && e[`rmk_${suffix}`])
         .map(e=>`ETA${e.eta_seq}: ${e[`rmk_${suffix}`]}`);
-      const remarkText = remarksArr.join('; ');
-      if (rd.remCell.textContent!==remarkText) {
+
+      let remarkText = '';
+      if (liveRemarks.length) {
+        remarkText = liveRemarks.join('; ');
+      } else {
+        // no live ETAs → show first unnumbered remark if any
+        const allRemarks = ent
+          .filter(e=> e[`rmk_${suffix}`] && e.rmk_en!=='Scheduled Bus')
+          .map(e=>e[`rmk_${suffix}`]);
+        remarkText = allRemarks[0] || '';
+      }
+
+      if (rd.remCell.textContent !== remarkText) {
         rd.remCell.textContent = remarkText;
         rd.remCell.classList.add('eta-updated');
         setTimeout(()=>rd.remCell.classList.remove('eta-updated'),1000);
@@ -517,17 +547,12 @@ document.addEventListener('click', e=>{
   btn.classList.add('animate');
 });
 
-// Theme toggle
+// Theme toggle wiring
 const themeToggle = document.getElementById('themeToggle');
-themeToggle.checked =
-  document.documentElement.classList.contains('dark-mode');
+themeToggle.checked = document.documentElement.classList.contains('dark-mode');
 themeToggle.addEventListener('change', e=>{
-  document.documentElement.classList.toggle(
-    'dark-mode', e.target.checked
-  );
-  localStorage.setItem(
-    'theme', e.target.checked?'dark':'light'
-  );
+  document.documentElement.classList.toggle('dark-mode', e.target.checked);
+  localStorage.setItem('theme', e.target.checked?'dark':'light');
 });
 
 // Search form submit
@@ -536,6 +561,14 @@ document.getElementById('searchForm')
     ev.preventDefault();
     updateUIText();
     hasBuilt = true;
+    // save search parameters
+    localStorage.setItem('lastSearch',
+      JSON.stringify({
+        lang: document.getElementById('langSelect').value,
+        stopName: document.getElementById('stopName').value.trim(),
+        routeNumbers: document.getElementById('routeNumbers').value.trim()
+      })
+    );
     initialBuild();
   });
 
@@ -546,12 +579,12 @@ document.getElementById('langSelect')
     if (hasBuilt) initialBuild();
   });
 
-// Resize rebuild
+// Resize
 window.addEventListener('resize', ()=>{
   if (hasBuilt) initialBuild();
 });
 
-// Initialize & auto-run last search
+// Initialize UI, restore last search if any
 updateUIText();
 const last = localStorage.getItem('lastSearch');
 if (last) {
