@@ -1,5 +1,3 @@
-[![License: MIT](https://img.shields.io/badge/
-  License-MIT-yellow.svg)](LICENSE)
 # TimoETA
 
 A lightweight, responsive single‐page application for fetching and displaying real‐time Estimated Time of Arrival (ETA) data for Kowloon Motor Bus (KMB) stops in Hong Kong.  
