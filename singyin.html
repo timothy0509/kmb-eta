@@ -1,1000 +1,340 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pak Hung House - KMB ETA</title>
-    <link rel="stylesheet" href="style.css" />
-  </head>
-  <body class="dark-mode">
-    <div class="container">
+<head>
+  <meta charset="UTF-8"/>
+  <meta
+    name="viewport"
+    content="width=device-width,initial-scale=1.0,maximum-scale=1.0"
+  />
+  <title>TimoETA – Sing Yin</title>
+  <!-- apply saved theme immediately -->
+  <script>
+    (function(){
+      const t = localStorage.getItem('theme');
+      if (t==='dark') document.documentElement.classList.add('dark-mode');
+    })();
+  </script>
+  <link rel="stylesheet" href="styles/style.css"/>
+</head>
+<body>
+  <div class="container fade-in">
+    <header class="fade-in">
+      <h1>TimoETA – Sing Yin</h1>
       <div class="header-controls">
-        <h1>Pak Hung House - Bus ETA</h1>
         <div class="theme-switch-wrapper">
-          <label class="theme-switch" for="countdownToggleSy">
-            <input
-              type="checkbox"
-              id="countdownToggleSy"
-              role="switch"
-              aria-checked="false"
-            />
-            <span class="slider round"></span>
+          <!-- theme toggle -->
+          <label class="theme-switch">
+            <input type="checkbox" id="themeToggle"/>
+            <span class="slider"></span>
           </label>
-          <span class="theme-label">ETA Countdown</span>
+          <span class="theme-label">Dark Mode</span>
+          <!-- language selector -->
+          <label for="langSelect" class="lang-label">Language</label>
+          <select id="langSelect" class="material-select">
+            <option value="en">English</option>
+            <option value="tc">繁體</option>
+            <option value="sc">简体</option>
+          </select>
         </div>
       </div>
-      <div id="status-messages-sy" role="status" aria-live="polite"></div>
-      <div class="eta-controls-header">
-        <button
-          id="manual-refresh-button-sy"
-          type="button"
-          style="display: none"
-        >
-          Refresh Now
-        </button>
-        <span id="last-updated-timestamp-sy" style="display: none"></span>
-      </div>
-      <div id="eta-results-area-sy">
-        <!-- ETA results will be populated here -->
-      </div>
-      <div id="legend">
-        <p><strong>Legend:</strong></p>
-        <p>
-          <span class="scheduled-eta">Grey Text / Italic</span>: Scheduled Bus
-        </p>
-        <p>
-          <span class="eta-due">Bold Blue</span>: Bus is Due
-        </p>
-        <p>
-          <span class="eta-departed">Strikethrough</span>: Bus has Departed
-        </p>
-        <p>
-          <span>*, !, ^</span>: See "Remarks" column for details.
-        </p>
-        <p>Route colors indicate service type (e.g., Overnight, Airport).</p>
-      </div>
-    </div>
+    </header>
 
-    <script>
-      const API_BASE_URL_SY = "https://data.etabus.gov.hk/v1/transport/kmb";
-      const STOP_CACHE_KEY_SY = "kmb_stop_data_cache_singyin_v3"; // Unique key
-      const CACHE_EXPIRY_HOURS_SY = 23;
+    <div id="results"></div>
 
-      const statusMessagesDivSy = document.getElementById("status-messages-sy");
-      const etaResultsAreaDivSy = document.getElementById("eta-results-area-sy");
-      const countdownToggleSy = document.getElementById("countdownToggleSy");
-      const manualRefreshButtonSy = document.getElementById("manual-refresh-button-sy");
-      const lastUpdatedTimestampSpanSy = document.getElementById("last-updated-timestamp-sy");
+    <footer class="app-footer fade-in">
+      Made by Timothy
+    </footer>
+  </div>
 
-
-      let fullStopDetailsCacheSy = {}; // stopId -> {name_en, name_tc}
-      let activeEtaCellsSy = [];
-      let countdownUpdateIntervalSy = null;
-      let refreshTimersSy = {}; // { timerId: { timeout: handle, interval: handle } }
-
-      const predefinedStopGroupsSy = [
-        {
-          groupName: "Pak Hung House - East Bound",
-          stops: [
-            { id: "942E95B4336BDFA7", platform: "Wt230" },
-            { id: "29740CCBBD82FC33", platform: "Wt231" },
-            { id: "9A16E73DC0B9AF6C", platform: "Wt232" },
-          ],
-        },
-        {
-          groupName: "Pak Hung House - West Bound",
-          stops: [
-            { id: "58611212645F0AB1", platform: "Wt614" },
-            { id: "3BA9C90738A8600D", platform: "Wt615" },
-          ],
-        },
-      ];
-
-      function saveSettingSy(key, value) {
-        localStorage.setItem(key + "_sy", JSON.stringify(value));
+  <script>
+    // --- presets ---
+    const PRESETS = [
+      {
+        groupName: "Pak Hung House – East Bound",
+        stops: [
+          { id: "942E95B4336BDFA7", platform: "WT230" },
+          { id: "29740CCBBD82FC33", platform: "WT231" },
+          { id: "9A16E73DC0B9AF6C", platform: "WT232" }
+        ]
+      },
+      {
+        groupName: "Pak Hung House – West Bound",
+        stops: [
+          { id: "58611212645F0AB1", platform: "WT614" },
+          { id: "3BA9C90738A8600D", platform: "WT615" }
+        ]
       }
+    ];
 
-      function loadSettingSy(key, defaultValue) {
-        const item = localStorage.getItem(key + "_sy");
-        if (item === null) return defaultValue;
-        try {
-          return JSON.parse(item);
-        } catch (e) {
-          console.error(`Error loading setting (SY) ${key}:`, e);
-          localStorage.removeItem(key + "_sy");
-          return defaultValue;
+    // --- API & i18n ---
+    const API = {
+      STOP_ETA: id =>
+        `https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${id}`
+    };
+    const LANGS = {
+      en: {
+        tableHeaders: {
+          Route: "Route",
+          Destination: "Destination",
+          Platform: "Platform",
+          ETA1: "ETA1",
+          ETA2: "ETA2",
+          ETA3: "ETA3",
+          Remarks: "Remarks"
+        }
+      },
+      tc: {
+        tableHeaders: {
+          Route: "路線",
+          Destination: "目的地",
+          Platform: "月台",
+          ETA1: "到站1",
+          ETA2: "到站2",
+          ETA3: "到站3",
+          Remarks: "備註"
+        }
+      },
+      sc: {
+        tableHeaders: {
+          Route: "路线",
+          Destination: "目的地",
+          Platform: "站台",
+          ETA1: "到站1",
+          ETA2: "到站2",
+          ETA3: "到站3",
+          Remarks: "备注"
         }
       }
+    };
+    const SUFFIX = { en: "en", tc: "tc", sc: "sc" };
 
-      function saveToCacheSy(key, data) {
-        const cacheEntry = { timestamp: new Date().getTime(), data: data };
-        localStorage.setItem(key, JSON.stringify(cacheEntry));
-      }
-
-      function loadFromCacheSy(key) {
-        const item = localStorage.getItem(key);
-        if (!item) return null;
-        try {
-          return JSON.parse(item);
-        } catch (e) {
-          localStorage.removeItem(key);
-          return null;
-        }
-      }
-
-      function isCacheValidSy(cacheEntry, expiryHours = CACHE_EXPIRY_HOURS_SY) {
-        if (!cacheEntry || !cacheEntry.timestamp) return false;
-        const now = new Date().getTime();
-        const cacheTime = new Date(cacheEntry.timestamp);
-        let nextUpdateTime = new Date(cacheTime);
-        nextUpdateTime.setHours(5, 0, 0, 0);
-        if (cacheTime.getHours() >= 5) {
-          nextUpdateTime.setDate(nextUpdateTime.getDate() + 1);
-        }
-        return now < nextUpdateTime.getTime();
-      }
-
-      async function fetchDataSy(url) {
-        console.log(`Fetching data (SY) from: ${url}`);
-        try {
-          const response = await fetch(url);
-          if (!response.ok) {
-            const errorBody = await response.text();
-            console.error(
-              `HTTP error (SY)! Status: ${response.status}, URL: ${url}, Body: ${errorBody}`
-            );
-            throw new Error(
-              `API Error (SY) ${response.status} for ${url}. Check console.`
-            );
-          }
-          const data = await response.json();
-          console.log(`Successfully fetched data (SY) from: ${url}`);
-          return data;
-        } catch (error) {
-          console.error(`Fetch error (SY) for URL ${url}:`, error);
-          throw error;
-        }
-      }
-
-      async function getFullStopListForSingYin() {
-        let cached = loadFromCacheSy(STOP_CACHE_KEY_SY);
-        if (cached && isCacheValidSy(cached)) {
-          console.log("Using cached full stop list for names (SingYin).");
-          cached.data.forEach(
-            (stop) =>
-              (fullStopDetailsCacheSy[stop.stop] = {
-                name_en: processNameSy(stop.name_en), 
-                name_tc: stop.name_tc,
-              })
-          );
-          return;
-        }
-        console.log("Fetching fresh full stop list for names (SingYin)...");
-        try {
-          const data = await fetchDataSy(`${API_BASE_URL_SY}/stop`);
-          if (data && data.data && Array.isArray(data.data)) {
-            const processedData = data.data.map((stop) => ({
-              stop: stop.stop,
-              name_en: processNameSy(stop.name_en),
-              name_tc: stop.name_tc,
-            }));
-            processedData.forEach(
-              (stop) => (fullStopDetailsCacheSy[stop.stop] = stop)
-            );
-            saveToCacheSy(STOP_CACHE_KEY_SY, processedData);
-            console.log(
-              "Full stop list processed and cached for names (SingYin)."
-            );
-          } else {
-            console.error(
-              "Failed to fetch or process full stop list for SingYin. API response was not an array or missing data."
-            );
-          }
-        } catch (error) {
-          console.error(
-            "Could not fetch full stop list for names (SingYin):",
-            error
-          );
-        }
-      }
-
-      async function getStopEtaSy(stopId) {
-        const data = await fetchDataSy(`${API_BASE_URL_SY}/stop-eta/${stopId}`);
-        if (!data || !data.data || !Array.isArray(data.data)) {
-          console.warn(
-            `No ETA data received for stop ${stopId} (SY) or data.data is not an array. Returning empty array.`
-          );
-          return [];
-        }
-        return data.data.map((eta) => ({
-          ...eta,
-          dest_en: processNameSy(eta.dest_en),
-        }));
-      }
-
-      function processNameSy(name) {
-        if (!name) return "";
-        name = name
-          .replace(/(BBI)-/gi, "$1 - ")
-          .replace(/(轉車站)-/g, "$1 - ");
-        return name
-          .trim()
-          .replace(/\w\S*/g, (txt) => {
-            const upperTxt = txt.toUpperCase();
-            // Simplified override for SingYin, can be expanded if needed
-            const overrides = ["KMB", "LWB", "MTR", "PTI", "HSBC", "RD", "ST", "AVE", "FEHD", "LCSD", "NT", "KLN", "HK"];
-            if (overrides.includes(upperTxt)) return upperTxt;
-            if (txt.toUpperCase() === "MCDONALD'S") return "McDonald's";
-            return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
-          });
-      }
-
-      function setStatusSy(message, type = "info", isUpdate = false) {
-        if (isUpdate && type === "loading") {
-          console.log(`Silent update status (SY): ${message}`);
-          return;
-        }
-        statusMessagesDivSy.textContent = message;
-        statusMessagesDivSy.className = `status-${type}`;
-        statusMessagesDivSy.style.display = "block";
-        setTimeout(() => {
-          statusMessagesDivSy.classList.add("status-visible");
-        }, 10);
-      }
-
-      function clearStatusSy() {
-        statusMessagesDivSy.classList.remove("status-visible");
-        const currentMessage = statusMessagesDivSy.textContent;
-        setTimeout(() => {
-          if (
-            statusMessagesDivSy.textContent === currentMessage &&
-            !statusMessagesDivSy.classList.contains("status-visible")
-          ) {
-            statusMessagesDivSy.textContent = "";
-            statusMessagesDivSy.style.display = "none";
-          }
-        }, 300);
-      }
-
-      function getRouteColorClassSy(routeStr) {
-        if (!routeStr) return "route-normal";
-        const route = routeStr.toUpperCase();
-        if (route.startsWith("A")) return "route-A";
-        if (route.startsWith("E") || route.startsWith("S")) return "route-ES";
-        if (route.startsWith("P")) return "route-P";
-        if (
-          route.startsWith("N") &&
-          !(
-            route.startsWith("NA") ||
-            route.startsWith("NE") ||
-            route.startsWith("NP")
-          )
-        )
-          return "route-N";
-        const numericMatch = route.match(/^[A-Z]*(\d+)[A-Z]*$/);
-        if (numericMatch) {
-          const coreNumericPart = numericMatch[1];
-          if (coreNumericPart.length === 3) {
-            const firstDigit = coreNumericPart.charAt(0);
-            if (["1", "3", "6"].includes(firstDigit)) return "route-136xx";
-            if (firstDigit === "9") return "route-9xx";
-          }
-        }
-        return "route-normal";
-      }
-
-      function formatEtaTimeSy(isoTimestamp) {
-        if (!isoTimestamp) return "-";
-        try {
-          return new Date(isoTimestamp).toLocaleTimeString("en-GB", {
+    // --- helpers ---
+    function formatTimeOnly(iso) {
+      return iso
+        ? new Date(iso).toLocaleTimeString("en-GB", {
+            hour12: false,
             hour: "2-digit",
             minute: "2-digit",
-            second: "2-digit",
-            hour12: false,
-          });
-        } catch (e) {
-          return "-";
-        }
-      }
+            second: "2-digit"
+          })
+        : "";
+    }
+    function parseRouteStr(r) {
+      const m = r.match(/^([A-Za-z]*)(\d+)([A-Za-z]*)$/);
+      return m
+        ? { prefix: m[1], num: +m[2], suffix: m[3] }
+        : { prefix: r, num: 0, suffix: "" };
+    }
+    function compareRoute(a, b) {
+      const x = parseRouteStr(a), y = parseRouteStr(b);
+      if (x.prefix !== y.prefix) return x.prefix.localeCompare(y.prefix);
+      if (x.num !== y.num) return x.num - y.num;
+      return x.suffix.localeCompare(y.suffix);
+    }
+    function routeTagClass(r) {
+      const up = r.toUpperCase(), { prefix, num } = parseRouteStr(up);
+      if (prefix === "A") return "route-A";
+      if (/^[ES]/.test(prefix)) return "route-ES";
+      if (prefix === "HK") return "route-HK";
+      if (prefix === "N") return "route-N";
+      if (num >= 100 && num < 200) return "route-1XX";
+      if (num >= 600 && num < 700) return "route-6XX";
+      if (num >= 900 && num < 1000)
+        return prefix === "P" ? "route-P9XX" : "route-9XX";
+      return "route-normal";
+    }
+    async function getETAs(id) {
+      const r = await fetch(API.STOP_ETA(id)),
+            j = await r.json();
+      return j.data || [];
+    }
 
-      function formatEtaCountdownSy(isoTimestamp, cell) {
-        if (!isoTimestamp) return "-";
-        const etaTime = new Date(isoTimestamp).getTime();
-        const now = new Date().getTime();
-        let diff = Math.round((etaTime - now) / 1000);
+    // --- render logic ---
+    let rowsData = [], refreshTimer = null;
+    async function buildTables() {
+      if (refreshTimer) clearInterval(refreshTimer);
+      rowsData = [];
+      const lang = document.getElementById("langSelect").value;
+      const suffix = SUFFIX[lang];
+      const H = LANGS[lang].tableHeaders;
+      const results = document.getElementById("results");
+      results.innerHTML = "";
 
-        cell.classList.remove('eta-due', 'eta-departed');
-        if (diff <= 0) {
-            if (diff < -30) {
-                cell.classList.add('eta-departed');
-                return "Departed";
-            } else {
-                cell.classList.add('eta-due');
-                return "Due";
-            }
-        }
-        const minutes = Math.floor(diff / 60);
-        const seconds = diff % 60;
-        return `${minutes}m ${seconds.toString().padStart(2, "0")}s`;
-      }
+      for (const grp of PRESETS) {
+        // group title
+        const h3 = document.createElement("h3");
+        h3.textContent = grp.groupName;
+        results.appendChild(h3);
 
-      function formatRouteNumberForDisplaySy(routeStr) {
-        return routeStr || "-";
-      }
-
-      function parseRouteForSortingSy(routeStr) {
-        if (!routeStr)
-          return {
-            prefix: "",
-            mainNumStr: "",
-            mainNumLen: 0,
-            suffix: "",
-            original: "",
-          };
-        const upperRoute = routeStr.toUpperCase();
-        const match = upperRoute.match(/^([A-Z]*)(\d*)([A-Z]*)$/);
-        let prefix = "",
-          mainNumStr = "",
-          suffix = "";
-        if (match) {
-          prefix = match[1] || "";
-          mainNumStr = match[2] || "";
-          suffix = match[3] || "";
-        } else {
-          prefix = upperRoute;
-        }
-        return {
-          prefix: prefix,
-          mainNumStr: mainNumStr,
-          mainNumLen: mainNumStr.length,
-          suffix: suffix,
-          original: routeStr,
-        };
-      }
-
-      function setupMarqueesSy() {
-        document
-          .querySelectorAll("#eta-results-area-sy .eta-dest-en-cell .marquee-text-wrapper")
-          .forEach((wrapper) => {
-            const span = wrapper.querySelector("span");
-            if (
-              span &&
-              wrapper.offsetWidth > 0 &&
-              span.offsetWidth > wrapper.offsetWidth
-            ) {
-              wrapper.classList.add("scrolling");
-            } else {
-              wrapper.classList.remove("scrolling");
-            }
-          });
-      }
-
-      function renderEtaTableSy(
-        groupDisplayName,
-        etasFromApi,
-        stopPlatformMap,
-        showCountdown = false
-      ) {
-        console.log(
-          `Rendering ETA table for (singyin): ${groupDisplayName}, showCountdown: ${showCountdown}`
-        );
-        let groupContainer = document.getElementById(
-          `group-container-${groupDisplayName.replace(/\s+/g, "-")}`
-        );
-        if (!groupContainer) {
-          groupContainer = document.createElement("div");
-          groupContainer.id = `group-container-${groupDisplayName.replace(
-            /\s+/g,
-            "-"
-          )}`;
-          etaResultsAreaDivSy.appendChild(groupContainer);
-        }
-        groupContainer.innerHTML = ""; 
-
-        const tableContainer = document.createElement("div");
-        tableContainer.className = "eta-table-container";
-        const title = document.createElement("h3");
-        title.textContent = `ETAs for ${groupDisplayName}`;
-        tableContainer.appendChild(title);
-
-        if (!etasFromApi || etasFromApi.length === 0) {
-          const p = document.createElement("p");
-          p.textContent =
-            "No ETA data available for this group at the moment.";
-          tableContainer.appendChild(p);
-          groupContainer.appendChild(tableContainer);
-          return;
-        }
-
+        // table container
+        const wrap = document.createElement("div");
+        wrap.className = "eta-table-container";
         const table = document.createElement("table");
         table.className = "eta-results";
-        const thead = table.createTHead();
-        const headerRow = thead.insertRow();
-        const headersBaseSy = [
-          "Rt.",
-          "Plat.",
-          "Dest(EN)",
-          "目的地",
-          "ETA 1",
-          "ETA 2",
-          "ETA 3",
-          "Remarks",
-        ];
-        headersBaseSy.forEach((text) => {
-          const th = document.createElement("th");
-          th.textContent = text;
-          headerRow.appendChild(th);
-        });
+        // headers
+        const ths = [
+          H.Route, H.Destination, H.Platform,
+          H.ETA1,  H.ETA2,       H.ETA3, H.Remarks
+        ]
+          .map(t => `<th>${t}</th>`)
+          .join("");
+        table.innerHTML = `<thead><tr>${ths}</tr></thead>`;
+        const tbody = document.createElement("tbody");
 
-        const tbody = table.createTBody();
-        const fragment = document.createDocumentFragment();
-        const remarkSymbolsSy = ["*", "!", "^", "#", "$", "%"];
-        let globalRemarkSymbolIndexSy = 0;
-
-        const processedGroupedEtas = {};
-        const committedServiceTypes = {};
-        etasFromApi.forEach((eta) => {
-          const primaryKey = `${eta.route}-${eta.dir}-${eta.dest_en}-${eta.dest_tc}`;
-          if (!committedServiceTypes[primaryKey])
-            committedServiceTypes[primaryKey] = eta.service_type;
-          if (eta.service_type === committedServiceTypes[primaryKey]) {
-            const displayKey = `${primaryKey}-${eta.stop}`;
-            if (!processedGroupedEtas[displayKey]) {
-              processedGroupedEtas[displayKey] = {
-                details: { ...eta },
-                timedEtas: [],
-                remarksOnly: [],
-              };
-            }
-            if (eta.eta) processedGroupedEtas[displayKey].timedEtas.push(eta);
-            else if (eta.rmk_en || eta.rmk_tc || eta.rmk_sc)
-              processedGroupedEtas[displayKey].remarksOnly.push(eta);
-          }
-        });
-
-        const sortedEtaGroups = Object.values(processedGroupedEtas).sort(
-          (groupA, groupB) => {
-            const routeA = parseRouteForSortingSy(groupA.details.route);
-            const routeB = parseRouteForSortingSy(groupB.details.route);
-            const hasTimedEtasA = groupA.timedEtas.length > 0;
-            const hasTimedEtasB = groupB.timedEtas.length > 0;
-            if (hasTimedEtasA && !hasTimedEtasB) return -1;
-            if (!hasTimedEtasA && hasTimedEtasB) return 1;
-            if (routeA.prefix < routeB.prefix) return -1;
-            if (routeA.prefix > routeB.prefix) return 1;
-            const mainNumLenA =
-              routeA.mainNumLen !== undefined ? routeA.mainNumLen : 0;
-            const mainNumLenB =
-              routeB.mainNumLen !== undefined ? routeB.mainNumLen : 0;
-            if (mainNumLenA < mainNumLenB) return -1;
-            if (mainNumLenA > mainNumLenB) return 1;
-            if (routeA.mainNumStr < routeB.mainNumStr) return -1;
-            if (routeA.mainNumStr > routeB.mainNumStr) return 1;
-            if (routeA.suffix < routeB.suffix) return -1;
-            if (routeA.suffix > routeB.suffix) return 1;
-            const platformA = stopPlatformMap[groupA.details.stop] || "";
-            const platformB = stopPlatformMap[groupB.details.stop] || "";
-            if (platformA < platformB) return -1;
-            if (platformA > platformB) return 1;
-            return 0;
-          }
-        );
-
-        sortedEtaGroups.forEach((group) => {
-          const timedEtas = group.timedEtas.sort(
-            (a, b) => new Date(a.eta) - new Date(b.eta)
-          );
-          const allRemarksForDisplayForRow = new Map();
-          let rowIsExpandable = false;
-          let expansionDetails = [];
-
-          timedEtas.slice(0, 3).forEach((etaEntry) => {
-            if (etaEntry && etaEntry.eta) {
-              const remarkText = etaEntry.rmk_en || etaEntry.rmk_tc || "";
-              const isSched =
-                remarkText === "Scheduled Bus" || remarkText === "原定班次";
-              if (remarkText && !isSched) {
-                rowIsExpandable = true;
-                if (!allRemarksForDisplayForRow.has(remarkText)) {
-                  allRemarksForDisplayForRow.set(
-                    remarkText,
-                    remarkSymbolsSy[
-                      globalRemarkSymbolIndexSy % remarkSymbolsSy.length
-                    ]
-                  );
-                  globalRemarkSymbolIndexSy++;
-                }
-              }
-              expansionDetails.push({
-                time: formatEtaTimeSy(etaEntry.eta),
-                countdown: formatEtaCountdownSy(etaEntry.eta, document.createElement('span')),
-                isDueOrDeparted:
-                  new Date(etaEntry.eta).getTime() <= new Date().getTime(),
-                remark: remarkText,
-                isScheduled: isSched,
-                etaTimestamp: etaEntry.eta,
-              });
-            } else if (etaEntry) {
-              expansionDetails.push({
-                time: "-",
-                countdown: "-",
-                remark: etaEntry.rmk_en || etaEntry.rmk_tc || "",
-                isScheduled: false,
-                etaTimestamp: null,
-              });
-            } else {
-              expansionDetails.push({
-                time: "-",
-                countdown: "-",
-                remark: "",
-                isScheduled: false,
-                etaTimestamp: null,
-              });
-            }
+        // collect rows
+        let rows = [];
+        for (const stop of grp.stops) {
+          const data = await getETAs(stop.id);
+          // group by route|dest_en
+          const byKey = {};
+          data.forEach(e => {
+            const k = `${e.route}|${e.dest_en}`;
+            (byKey[k] = byKey[k] || []).push(e);
           });
-
-          if (timedEtas.length > 0) {
-            const row = document.createElement("tr");
-            row.classList.add("eta-data-row");
-            const expansionRowId = `expansion-sy-${group.details.route}-${group.details.stop}-${Date.now()}${Math.random().toString(36).substring(2,7)}`;
-            if (rowIsExpandable) {
-                row.classList.add("is-expandable");
-                row.setAttribute("aria-expanded", "false");
-                row.setAttribute("aria-controls", expansionRowId);
-            }
-            const firstEta = timedEtas[0];
-
-            const routeCell = document.createElement("td");
-            routeCell.classList.add(
-              getRouteColorClassSy(firstEta.route),
-              "eta-route-cell"
-            );
-            routeCell.innerHTML = `<span class="route-tag">${formatRouteNumberForDisplaySy(firstEta.route)}</span>`;
-            row.appendChild(routeCell);
-
-            const platCell = document.createElement("td");
-            platCell.textContent = stopPlatformMap[firstEta.stop] || "-";
-            platCell.classList.add("eta-platform-cell");
-            row.appendChild(platCell);
-
-            const destEnCell = document.createElement("td");
-            destEnCell.classList.add("eta-dest-en-cell");
-            const marqueeWrapper = document.createElement("div");
-            marqueeWrapper.className = "marquee-text-wrapper";
-            const marqueeSpan = document.createElement("span");
-            marqueeSpan.textContent = firstEta.dest_en;
-            marqueeWrapper.appendChild(marqueeSpan);
-            destEnCell.appendChild(marqueeWrapper);
-            row.appendChild(destEnCell);
-
-            const destTcCell = document.createElement("td");
-            destTcCell.textContent = firstEta.dest_tc;
-            destTcCell.classList.add("eta-dest-tc-cell");
-            row.appendChild(destTcCell);
-
-            for (let i = 0; i < 3; i++) {
-              const td = document.createElement("td");
-              td.classList.add("desktop-eta-cell");
-              if (timedEtas[i]) {
-                const isScheduled =
-                  timedEtas[i].rmk_en === "Scheduled Bus" ||
-                  timedEtas[i].rmk_tc === "原定班次";
-                td.dataset.etaTimestamp = timedEtas[i].eta;
-                let etaDisplayContent =
-                  showCountdown &&
-                  !isScheduled &&
-                  new Date(timedEtas[i].eta) > new Date()
-                    ? formatEtaCountdownSy(timedEtas[i].eta, td)
-                    : formatEtaTimeSy(timedEtas[i].eta);
-                let remarkText = timedEtas[i].rmk_en || timedEtas[i].rmk_tc || "";
-                let highlightClass =
-                  i === 0 && timedEtas[i].eta ? " first-eta-highlight" : "";
-                let displayHtml = `<span class="eta-time-value${highlightClass}">${etaDisplayContent}</span>`;
-                if (isScheduled) td.classList.add("scheduled-eta");
-                else if (new Date(timedEtas[i].eta).getTime() <= new Date().getTime()) {
-                    formatEtaCountdownSy(timedEtas[i].eta, td); 
-                }
-                if (remarkText && !isScheduled) {
-                  const symbol = allRemarksForDisplayForRow.get(remarkText);
-                  if (symbol)
-                    displayHtml += `<span class="remark-symbol">${symbol}</span>`;
-                }
-                td.innerHTML = displayHtml;
-                if (
-                  showCountdown &&
-                  !isScheduled &&
-                  timedEtas[i].eta &&
-                  new Date(timedEtas[i].eta) > new Date()
+          Object.values(byKey).forEach(ent => {
+            ent.sort((a, b) => a.eta_seq - b.eta_seq);
+            const first = ent[0] || {};
+            rows.push({
+              stopId:   stop.id,
+              route:    first.route,
+              dest:     first[`dest_${suffix}`],
+              dest_en:  first.dest_en,
+              platform: stop.platform,
+              etas:     [ent[0]||{}, ent[1]||{}, ent[2]||{}],
+              remarks:  ent
+                .filter(x =>
+                  x.eta && x.rmk_en!=="Scheduled Bus" &&
+                  x[`rmk_${suffix}`]
                 )
-                  activeEtaCellsSy.push(td);
-              } else td.textContent = "-";
-              row.appendChild(td);
-            }
-
-            const mobileEtasTd = document.createElement("td");
-            mobileEtasTd.className = "mobile-etas-td-container";
-            const mobileEtasGroup = document.createElement("div");
-            mobileEtasGroup.className = "mobile-etas-group";
-            timedEtas.slice(0, 3).forEach((etaEntry, index) => {
-              if (etaEntry && etaEntry.eta) {
-                const etaItemDiv = document.createElement("div");
-                etaItemDiv.className = "mobile-eta-item eta-item-" + index;
-                etaItemDiv.dataset.etaTimestamp = etaEntry.eta;
-                const isScheduled =
-                  etaEntry.rmk_en === "Scheduled Bus" ||
-                  etaEntry.rmk_tc === "原定班次";
-                if (isScheduled) etaItemDiv.classList.add("scheduled-eta");
-                
-                let mobileEtaText =
-                  showCountdown &&
-                  !isScheduled &&
-                  new Date(etaEntry.eta) > new Date()
-                    ? formatEtaCountdownSy(etaEntry.eta, etaItemDiv)
-                    : formatEtaTimeSy(etaEntry.eta);
-                if (!isScheduled && new Date(etaEntry.eta).getTime() <= new Date().getTime()) {
-                    formatEtaCountdownSy(etaEntry.eta, etaItemDiv);
-                }
-
-                let mobileDisplayHtml = `<span>${mobileEtaText}</span>`;
-                const remarkText = etaEntry.rmk_en || etaEntry.rmk_tc || "";
-                if (remarkText && !isScheduled) {
-                  const symbol = allRemarksForDisplayForRow.get(remarkText);
-                  if (symbol)
-                    mobileDisplayHtml += `<span class="remark-symbol-mobile">${symbol}</span>`;
-                }
-                etaItemDiv.innerHTML = mobileDisplayHtml;
-                mobileEtasGroup.appendChild(etaItemDiv);
-                if (
-                  showCountdown &&
-                  !isScheduled &&
-                  new Date(etaEntry.eta) > new Date()
+                .map(x =>
+                  `ETA${x.eta_seq}: ${x[`rmk_${suffix}`]}`
                 )
-                  activeEtaCellsSy.push(etaItemDiv);
-              }
             });
-            mobileEtasTd.appendChild(mobileEtasGroup);
-            row.appendChild(mobileEtasTd);
+          });
+        }
 
-            const remarksCell = document.createElement("td");
-            remarksCell.classList.add("eta-remarks-cell");
-            let remarksContent = "";
-            allRemarksForDisplayForRow.forEach((symbol, text) => {
-              remarksContent += `<p style="margin:0; padding:0;">${symbol} ${text}</p>`;
-            });
-            remarksCell.innerHTML = remarksContent || "-";
-            row.appendChild(remarksCell);
-            fragment.appendChild(row);
-
-            if (rowIsExpandable) {
-              const expansionRow = document.createElement("tr");
-              expansionRow.className = "mobile-expansion-row";
-              expansionRow.id = expansionRowId;
-              const expansionCell = document.createElement("td");
-              expansionCell.className = "mobile-expansion-cell";
-              expansionCell.colSpan = headersBaseSy.length;
-
-              expansionDetails.forEach((detail) => {
-                if (!detail.etaTimestamp && !detail.remark) return;
-                const itemDiv = document.createElement("div");
-                itemDiv.className = "mobile-expansion-content-item";
-                if (detail.isScheduled)
-                  itemDiv.classList.add("scheduled-eta");
-                
-                let timeToShow = detail.time;
-                if (showCountdown && !detail.isScheduled && detail.etaTimestamp && new Date(detail.etaTimestamp) > new Date()) {
-                    timeToShow = detail.countdown;
-                } else if (!detail.isScheduled && detail.etaTimestamp && new Date(detail.etaTimestamp).getTime() <= new Date().getTime()) {
-                    const tempCell = document.createElement('span');
-                    timeToShow = formatEtaCountdownSy(detail.etaTimestamp, tempCell);
-                    if (tempCell.classList.contains('eta-due')) itemDiv.classList.add('eta-due');
-                    if (tempCell.classList.contains('eta-departed')) itemDiv.classList.add('eta-departed');
-                }
-                itemDiv.innerHTML = `<span class="eta-time">${timeToShow}</span> <span class="remark-text">${detail.remark || ""}</span>`;
-                expansionCell.appendChild(itemDiv);
-              });
-              expansionRow.appendChild(expansionCell);
-              fragment.appendChild(expansionRow);
-            }
-          } else if (group.remarksOnly.length > 0) { // Only remarks, no timed ETAs for this route/stop
-            group.remarksOnly.forEach(remarkEta => {
-              if (!(remarkEta.rmk_en || remarkEta.rmk_tc || remarkEta.rmk_sc)) return;
-              const row = document.createElement("tr");
-              row.classList.add("remark-only-row");
-              const remarkRouteCell = document.createElement("td");
-              remarkRouteCell.classList.add(getRouteColorClassSy(remarkEta.route));
-              remarkRouteCell.innerHTML = `<span class="route-tag">${formatRouteNumberForDisplaySy(remarkEta.route)}</span>`;
-              row.appendChild(remarkRouteCell);
-
-              const remarkPlatCell = document.createElement("td");
-              remarkPlatCell.textContent = stopPlatformMap[remarkEta.stop] || "-";
-              row.appendChild(remarkPlatCell);
-
-              const remarkDestEnCell = document.createElement("td");
-              remarkDestEnCell.textContent = remarkEta.dest_en || "-";
-              row.appendChild(remarkDestEnCell);
-              const remarkDestTcCell = document.createElement("td");
-              remarkDestTcCell.textContent = remarkEta.dest_tc || "-";
-              row.appendChild(remarkDestTcCell);
-              
-              // For ETAs 1, 2, 3 - show '-'
-              for (let i = 0; i < 3; i++) {
-                  const etaTd = document.createElement("td");
-                  etaTd.textContent = "-";
-                  row.appendChild(etaTd);
-              }
-              // Mobile ETA cell
-              const mobileEtaTd = document.createElement("td");
-              mobileEtaTd.className = "mobile-etas-td-container";
-              mobileEtaTd.textContent = "-";
-              row.appendChild(mobileEtaTd);
-
-              const remarkContentCell = document.createElement("td");
-              remarkContentCell.textContent = remarkEta.rmk_en || remarkEta.rmk_tc || remarkEta.rmk_sc;
-              row.appendChild(remarkContentCell);
-              fragment.appendChild(row);
-            });
-          }
+        // sort rows
+        rows.sort((a, b) => {
+          const aL = a.etas.some(x => x.eta),
+                bL = b.etas.some(x => x.eta);
+          if (aL !== bL) return aL ? -1 : 1;
+          return compareRoute(a.route, b.route);
         });
-        tbody.appendChild(fragment);
-        tableContainer.appendChild(table);
-        groupContainer.appendChild(tableContainer);
-      }
 
-      function updateDisplayedEtaFormatSy() {
-        const showCountdown = countdownToggleSy.checked;
-        activeEtaCellsSy = [];
-        document
-          .querySelectorAll(
-            "#eta-results-area-sy td.desktop-eta-cell[data-eta-timestamp], #eta-results-area-sy .mobile-eta-item[data-eta-timestamp]"
-          )
-          .forEach((cell) => {
-            const timestamp = cell.dataset.etaTimestamp;
-            const isScheduled = cell.classList.contains("scheduled-eta");
-            const timeValueElement = cell.classList.contains("mobile-eta-item")
-              ? cell.querySelector("span")
-              : cell.querySelector(".eta-time-value");
+        // build table rows
+        rows.forEach(r => {
+          const tr = document.createElement("tr");
+          tr.className = r.etas.some(x => x.eta)
+            ? "eta-data-row"
+            : "no-eta-row eta-data-row";
 
-            if (timestamp && timeValueElement) {
-              const etaDate = new Date(timestamp);
-              cell.classList.remove('eta-due', 'eta-departed');
+          // route
+          const tdRt = document.createElement("td");
+          const sp = document.createElement("span");
+          sp.className = "route-tag " + routeTagClass(r.route);
+          sp.textContent = r.route;
+          tdRt.appendChild(sp);
+          tr.appendChild(tdRt);
 
-              if (showCountdown && !isScheduled && etaDate > new Date()) {
-                timeValueElement.textContent = formatEtaCountdownSy(timestamp, cell);
-                activeEtaCellsSy.push(cell);
-              } else {
-                timeValueElement.textContent = formatEtaTimeSy(timestamp);
-                 if (!isScheduled && etaDate <= new Date()) {
-                    timeValueElement.textContent = formatEtaCountdownSy(timestamp, cell);
-                }
-              }
-            }
-          });
-        if (showCountdown && activeEtaCellsSy.length > 0)
-          startCountdownUpdaterSy();
-        else stopCountdownUpdaterSy();
-      }
+          // destination
+          const tdD = document.createElement("td");
+          tdD.textContent = r.dest;
+          if (!r.etas.some(x => x.eta)) tdD.classList.add("no-eta-text");
+          tr.appendChild(tdD);
 
-      function scheduleNextMinuteRefreshSy(refreshFunction, timerId) {
-        if (refreshTimersSy[timerId]) {
-          clearTimeout(refreshTimersSy[timerId].timeout);
-          clearInterval(refreshTimersSy[timerId].interval);
-        }
-        const now = new Date();
-        const seconds = now.getSeconds();
-        const milliseconds = now.getMilliseconds();
-        let delay = (60 - seconds) * 1000 - milliseconds;
-        if (delay <= 0) delay += 60000;
+          // platform
+          const tdP = document.createElement("td");
+          tdP.textContent = r.platform;
+          if (!r.etas.some(x => x.eta)) tdP.classList.add("no-eta-text");
+          tr.appendChild(tdP);
 
-        console.log(
-          `Scheduling first refresh for ${timerId} (SY) in ${delay / 1000}s at ${new Date(Date.now() + delay).toLocaleTimeString()}`
-        );
-        const timeout = setTimeout(() => {
-          console.log(
-            `Performing initial aligned refresh for ${timerId} (SY) at ${new Date().toLocaleTimeString()}`
-          );
-          refreshFunction(true);
-          const interval = setInterval(() => {
-            console.log(
-              `Performing scheduled refresh for ${timerId} (SY) at ${new Date().toLocaleTimeString()}`
-            );
-            refreshFunction(true);
-          }, 60000);
-          refreshTimersSy[timerId] = {
-            ...refreshTimersSy[timerId],
-            interval: interval,
-          };
-        }, delay);
-        refreshTimersSy[timerId] = { timeout: timeout, interval: null };
-      }
-
-      function clearRefreshTimerSy(timerId) {
-        if (refreshTimersSy[timerId]) {
-          clearTimeout(refreshTimersSy[timerId].timeout);
-          clearInterval(refreshTimersSy[timerId].interval);
-          delete refreshTimersSy[timerId];
-          console.log(`Cleared refresh timer for ${timerId} (SY)`);
-        }
-      }
-      
-      function updateLastUpdatedTimestampSy() {
-        lastUpdatedTimestampSpanSy.textContent = `Last updated: ${new Date().toLocaleTimeString('en-GB')}`;
-        lastUpdatedTimestampSpanSy.style.display = 'inline';
-        manualRefreshButtonSy.style.display = 'inline-block';
-      }
-
-
-      async function loadSingYinEtas(isSilent = true) {
-        if (!isSilent) {
-            etaResultsAreaDivSy.innerHTML = `<div class="loading-placeholder">Loading Pak Hung House ETAs... <div class="spinner"></div></div>`;
-        }
-        setStatusSy("Loading Pak Hung House ETAs...", "loading", isSilent);
-        
-        try {
-          await getFullStopListForSingYin(); 
-          if (!isSilent) {
-            etaResultsAreaDivSy.innerHTML = ""; 
-          }
-          activeEtaCellsSy = []; 
-
-          const scrollPositions = {};
-          document.querySelectorAll('#eta-results-area-sy > div[id^="group-container-"]').forEach(container => {
-            const titleEl = container.querySelector('h3');
-            if (titleEl) scrollPositions[titleEl.textContent] = container.scrollTop;
-          });
-          
-          // Clear only group containers if refreshing, not the whole area if silent
-          if (isSilent) {
-             document.querySelectorAll('#eta-results-area-sy > div[id^="group-container-"]').forEach(container => container.innerHTML = "");
-          }
-
-
-          for (const group of predefinedStopGroupsSy) {
-            let allEtasForGroup = [];
-            const stopPlatformMap = {};
-            group.stops.forEach((s) => (stopPlatformMap[s.id] = s.platform));
-
-            if (!isSilent)
-              setStatusSy(
-                `Fetching ETAs for ${group.groupName}...`,
-                "loading"
-              );
-
-            const etaPromises = group.stops.map((stop) =>
-              getStopEtaSy(stop.id).catch(() => [])
-            );
-            const etaResultsArray = await Promise.all(etaPromises);
-            etaResultsArray.forEach((etas) => {
-              allEtasForGroup.push(...etas);
-            });
-
-            renderEtaTableSy(
-              group.groupName,
-              allEtasForGroup,
-              stopPlatformMap,
-              countdownToggleSy.checked
-            );
-          }
-
-          document.querySelectorAll('#eta-results-area-sy > div[id^="group-container-"]').forEach(container => {
-            const titleEl = container.querySelector('h3');
-            if (titleEl && scrollPositions[titleEl.textContent] !== undefined) {
-                container.scrollTop = scrollPositions[titleEl.textContent];
-            }
+          // ETAs
+          const etaCells = [];
+          r.etas.forEach((e, i) => {
+            const td = document.createElement("td");
+            td.className = "desktop-eta-cell" + (i===0?" eta-first":"");
+            td.textContent = formatTimeOnly(e.eta);
+            if (i>0 && e.rmk_en==="Scheduled Bus")
+              td.classList.add("scheduled-eta");
+            tr.appendChild(td);
+            etaCells.push(td);
           });
 
+          // remarks
+          const tdR = document.createElement("td");
+          tdR.textContent = r.remarks.join("; ");
+          tr.appendChild(tdR);
 
-          if (etaResultsAreaDivSy.innerHTML.trim() === "" && !isSilent) {
-            setStatusSy("No ETA data found for Pak Hung House stops.", "info");
-            lastUpdatedTimestampSpanSy.style.display = 'none';
-            manualRefreshButtonSy.style.display = 'none';
-          } else {
-            updateLastUpdatedTimestampSy();
-            if (
-              !isSilent ||
-              (isSilent &&
-                statusMessagesDivSy.textContent.includes("Loading Pak Hung"))
-            ) {
-              clearStatusSy();
-            }
-          }
-          setupMarqueesSy();
-          updateDisplayedEtaFormatSy();
-        } catch (error) {
-          console.error("Error in loadSingYinEtas:", error);
-          setStatusSy(
-            `Error: ${error.message}. Check console.`,
-            "error",
-            isSilent
-          );
-          if (!isSilent) etaResultsAreaDivSy.innerHTML = ""; // Clear loading placeholder
-           lastUpdatedTimestampSpanSy.style.display = 'none';
-           manualRefreshButtonSy.style.display = 'none';
-        }
-      }
-
-      function startCountdownUpdaterSy() {
-        stopCountdownUpdaterSy();
-        if (activeEtaCellsSy.length > 0 && countdownToggleSy.checked) {
-          countdownUpdateIntervalSy = setInterval(() => {
-            activeEtaCellsSy = activeEtaCellsSy.filter((cell) => {
-              if (!document.body.contains(cell)) return false;
-              const timestamp = cell.dataset.etaTimestamp;
-              const targetElement = cell.classList.contains("mobile-eta-item")
-                ? cell.querySelector("span")
-                : cell.querySelector(".eta-time-value");
-
-              if (
-                timestamp &&
-                targetElement &&
-                !cell.classList.contains("scheduled-eta")
-              ) {
-                const etaDate = new Date(timestamp);
-                targetElement.textContent = formatEtaCountdownSy(timestamp, cell);
-                if (etaDate <= new Date()) {
-                    return false;
-                }
-              } else if (cell.classList.contains("scheduled-eta")) {
-                return false;
-              }
-              return true;
-            });
-            if (activeEtaCellsSy.length === 0) stopCountdownUpdaterSy();
-          }, 1000);
-        }
-      }
-
-      function stopCountdownUpdaterSy() {
-        if (countdownUpdateIntervalSy) clearInterval(countdownUpdateIntervalSy);
-        countdownUpdateIntervalSy = null;
-      }
-
-      function setCountdownModeSy(showCountdown) {
-        saveSettingSy("showCountdownSy", showCountdown);
-        if (countdownToggleSy) {
-            countdownToggleSy.checked = showCountdown;
-            countdownToggleSy.setAttribute('aria-checked', showCountdown);
-        }
-        updateDisplayedEtaFormatSy();
-      }
-
-      document.addEventListener("DOMContentLoaded", () => {
-        const savedCountdownPreferenceSy = loadSettingSy(
-          "showCountdownSy",
-          false
-        );
-        setCountdownModeSy(savedCountdownPreferenceSy);
-
-        loadSingYinEtas(false); 
-        scheduleNextMinuteRefreshSy(
-          () => loadSingYinEtas(true),
-          "singYinPage"
-        );
-
-        countdownToggleSy.addEventListener("change", (event) => {
-          setCountdownModeSy(event.target.checked);
-          event.target.setAttribute('aria-checked', event.target.checked);
+          tbody.appendChild(tr);
+          rowsData.push({
+            stopId: r.stopId,
+            route:  r.route,
+            dest_en: r.dest_en,
+            etaCells,
+            remCell: tdR,
+            platform: r.platform
+          });
         });
-        
-        manualRefreshButtonSy.addEventListener('click', () => loadSingYinEtas(false));
 
-        etaResultsAreaDivSy.addEventListener("click", function (event) { // Changed to single click
-          const row = event.target.closest("tr.eta-data-row.is-expandable");
-          if (!row) return;
-          const expansionRow = row.nextElementSibling;
-          if (
-            expansionRow &&
-            expansionRow.classList.contains("mobile-expansion-row")
-          ) {
-            const isVisible = expansionRow.classList.toggle("is-visible");
-            row.classList.toggle("is-expanded", isVisible);
-            row.setAttribute('aria-expanded', isVisible);
+        table.appendChild(tbody);
+        wrap.appendChild(table);
+        results.appendChild(wrap);
+      }
+
+      // start auto-refresh
+      refreshTimer = setInterval(refreshTables, 30000);
+    }
+
+    async function refreshTables() {
+      for (const rd of rowsData) {
+        const raw = await getETAs(rd.stopId);
+        const ent = raw
+          .filter(e => e.route===rd.route && e.dest_en===rd.dest_en)
+          .sort((a,b)=>a.eta_seq-b.eta_seq);
+        const newEtas = [ent[0]||{}, ent[1]||{}, ent[2]||{}];
+
+        newEtas.forEach((e,i) => {
+          const td = rd.etaCells[i];
+          const txt = formatTimeOnly(e.eta);
+          if (td.textContent!==txt) {
+            td.textContent = txt;
+            td.classList.add("eta-updated");
+            setTimeout(()=>td.classList.remove("eta-updated"),1000);
           }
+          if (i>0 && e.rmk_en==="Scheduled Bus")
+            td.classList.add("scheduled-eta");
+          else td.classList.remove("scheduled-eta");
         });
-      });
-    </script>
 
-    <footer>
-      <p>Made by Timothy</p>
-    </footer>
-  </body>
+        const lang = document.getElementById("langSelect").value;
+        const suffix = SUFFIX[lang];
+        const remarksArr = newEtas
+          .filter(x=>x.eta && x.rmk_en!=="Scheduled Bus" && x[`rmk_${suffix}`])
+          .map(x=>`ETA${x.eta_seq}: ${x[`rmk_${suffix}`]}`);
+        const remarkText = remarksArr.join("; ");
+        if (rd.remCell.textContent!==remarkText) {
+          rd.remCell.textContent = remarkText;
+          rd.remCell.classList.add("eta-updated");
+          setTimeout(()=>rd.remCell.classList.remove("eta-updated"),1000);
+        }
+      }
+    }
+
+    // theme toggle wiring
+    const themeToggle = document.getElementById("themeToggle");
+    themeToggle.checked =
+      document.documentElement.classList.contains("dark-mode");
+    themeToggle.addEventListener("change", e => {
+      document.documentElement.classList.toggle("dark-mode", e.target.checked);
+      localStorage.setItem("theme", e.target.checked?"dark":"light");
+    });
+
+    // language change
+    document.getElementById("langSelect")
+      .addEventListener("change", buildTables);
+
+    // initial render
+    buildTables();
+  </script>
+</body>
 </html>

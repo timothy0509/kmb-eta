@@ -1,115 +1,170 @@
-# KMB Real-Time Bus ETA Viewer
+# TimoETA
 
-A web-based tool to fetch and display real-time Estimated Time of Arrival (ETA) for Kowloon Motor Bus (KMB) services in Hong Kong. This repository contains two distinct HTML interfaces: a general-purpose ETA search tool and a dedicated viewer for specific stops around "Pak Hung House."
+A lightweight, responsive single‐page application for fetching and displaying real‐time Estimated Time of Arrival (ETA) data for Kowloon Motor Bus (KMB) stops in Hong Kong.  
+Built with plain HTML, CSS (CSS Custom Properties + flex/grid), and vanilla JavaScript—no frontend framework required.
 
-## Live Demo
+---
 
-You can access the live versions here:
+## Table of Contents
 
-*   **General ETA Search:** `https://eta.hkjc.uk`
-*   **Pak Hung House ETA:** `https://eta.hkjc.uk/singyin`
+1. [Project Overview](#project-overview)  
+2. [Features](#features)  
+3. [Getting Started](#getting-started)  
+   1. [Prerequisites](#prerequisites)  
+   2. [Installation](#installation)  
+   3. [Running Locally](#running-locally)  
+4. [Usage](#usage)  
+   1. [Main Page (`index.html`)](#main-page-indexhtml)  
+   2. [Predefined Stops Page (`singyin.html`)](#predefined-stops-page-singyinhtml)  
+5. [Project Structure](#project-structure)  
+6. [Customization](#customization)  
+7. [Contributing](#contributing)  
+8. [License](#license)  
+9. [Acknowledgments](#acknowledgments)  
+
+---
+
+## Project Overview
+
+TimoETA provides a simple interface to:
+
+- Search KMB bus stops by partial name.  
+- Optionally filter by comma‐separated route numbers.  
+- View up to three forthcoming ETAs per route, with “live” times highlighted.  
+- See human-readable remarks (e.g. delays), annotated with which ETA they apply to.  
+- Auto-refresh every 30 seconds without a full page reload.  
+- Toggle between English, Traditional Chinese, and Simplified Chinese.  
+- Choose light or dark theme (persisted in `localStorage`).  
+- Adapt between desktop (table view) and mobile (card view) layouts.  
+
+In addition to the main search UI (`index.html`), a secondary page (`singyin.html`) showcases a “preset” view for two fixed groups of stops at Sing Yin (Pak Hung House).
+
+---
 
 ## Features
 
-**Common Features (Both Pages):**
+- **Single‐Page Application**: no full reloads—data is fetched via `fetch()`.  
+- **Responsive Design**:  
+  - Desktop: data in a styled `<table>`.  
+  - Mobile: 80px‐tall “cards” laid out in a 3-column grid (route, destination, times).  
+- **Light/Dark Themes**: CSS variables supply two palettes, toggled via a custom switch.  
+- **Internationalization**: all labels, placeholders, buttons, and table headers switch between EN/TC/SC.  
+- **Route Sorting**: alphanumeric routes (“14”, “14X”, “A1”, etc.) sorted logically.  
+- **Auto-Refresh**: only ETA cells and remarks update, with a brief highlight animation when values change.  
+- **Caching**:  
+  - Full stop list cached on first load to reduce API calls.  
+  - Last search parameters (stop name, route filter, language) saved in `localStorage` and re-run automatically on page load.  
 
-*   **Real-Time Data:** Fetches live ETA data from the official `data.etabus.gov.hk` API.
-*   **Clear ETA Display:** Shows up to three upcoming ETAs per route, destination, and (where applicable) platform.
-*   **Route Styling:** Color-codes bus routes based on their type (e.g., Airport 'A' routes, Overnight 'N' routes, Cross-harbour '1xx, 3xx, 6xx, 9xx' routes) for easy identification.
-*   **Scheduled vs. Real-Time:** Differentiates scheduled buses (grey, italic text) from real-time tracked buses.
-*   **Remarks:** Displays important remarks associated with specific departures (e.g., "Scheduled Bus", special service notes).
-*   **Responsive Design:** Adapts to different screen sizes for usability on desktop and mobile devices.
-*   **Dark Mode:** Includes a theme switcher (`index.html`) or defaults to dark mode (`singyin.html`) for user preference, with settings saved in local storage.
-*   **Caching:**
-    *   Stop list data is cached in `localStorage` to reduce API calls, with a 23-hour expiry, refreshing after 5 AM daily.
-*   **Status Messages:** Provides user feedback for loading, errors, and informational messages.
+---
 
-**`index.html` - General KMB ETA Search:**
+## Getting Started
 
-*   **Stop Search:** Allows users to search for bus stops by English or Chinese name.
-*   **Route Filtering:** Users can filter ETAs for specific routes (e.g., "1A,271").
-*   **Smart Grouping:**
-    *   An optional feature that groups ETAs from multiple physical stop platforms that share a common base name (e.g., "Tsim Sha Tsui Ferry (Pier A)" and "Tsim Sha Tsui Ferry (Pier B)" would be grouped under "Tsim Sha Tsui Ferry").
-    *   When smart grouping is active and a group contains multiple platforms, a "Plat." (Platform) column is shown if ETAs are from different platforms within that group.
-*   **Custom Name Processing:** Formats stop and destination names to a consistent title case, with overrides for common acronyms (KMB, MTR, HSBC, etc.).
-*   **Platform Parsing:** Attempts to extract platform information from stop names (e.g., "(A)", "BBI - Pier C").
+### Prerequisites
 
-**`singyin.html` - Pak Hung House Specific ETA Viewer:**
+You only need a modern browser and a simple static file server (to avoid CORS issues when fetching JSON).
 
-*   **Predefined Stops:** Displays ETAs for a hardcoded list of bus stops grouped as "Pak Hung House - East Bound" and "Pak Hung House - West Bound."
-*   **Automatic Refresh:** ETAs automatically refresh every 60 seconds.
-*   **Dedicated Platform Column:** Always shows a "Plat." column indicating the specific platform for each route's ETA.
-*   **Simplified Interface:** No search or filter inputs; designed for quick, focused information.
+### Installation
 
-## Technologies Used
+```bash
+# Clone this repository
+git clone https://github.com/<YOUR_USERNAME>/timoeta.git
+cd timoeta
+```
 
-*   **HTML5:** Structure of the web pages.
-*   **CSS3:** Styling, layout, responsiveness, and theming (light/dark modes).
-    *   Utilizes CSS variables for theming.
-    *   Attempts to use "Google Sans" font family with "Roboto" as a fallback.
-*   **JavaScript (ES6+):**
-    *   Fetching data using the `fetch` API (`async/await`).
-    *   DOM manipulation for displaying data.
-    *   `localStorage` for caching and theme persistence.
-    *   Event handling.
-*   **KMB Open Data API:** The source of all bus stop and ETA information (`https://data.etabus.gov.hk`).
+### Running Locally
 
-## File Structure
+#### Option A: Python 3
 
-*   `index.html`: The main page for general bus stop ETA searches.
-*   `singyin.html`: A specialized page for viewing ETAs for predefined stops near Pak Hung House.
-*   `style.css`: Contains all the styling rules for both HTML pages, including light/dark themes and responsive design.
+```bash
+python3 -m http.server 8000
+# Then open http://localhost:8000/index.html
+```
 
-## How It Works
+#### Option B: Node.js `serve` (or any static server)
 
-1.  **Fetch Stop Data (`index.html` & `singyin.html` - initial load/cache miss):**
-    *   On initial load or if the cache is invalid, the application fetches a list of all KMB bus stops from the `/v1/transport/kmb/stop` API endpoint.
-    *   This list is processed (names formatted) and cached in `localStorage`.
-    *   `index.html` uses this list for searching stops.
-    *   `singyin.html` can optionally use this to enrich stop details, though its primary function relies on predefined stop IDs.
+```bash
+npm install -g serve
+serve .
+# Visit the printed URL, e.g. http://localhost:5000/index.html
+```
 
-2.  **User Interaction (`index.html`):**
-    *   The user enters a stop name and optionally filters by route.
-    *   The application searches the cached stop list for matches.
-    *   If "Smart Grouping" is enabled, matched stops are grouped by their base name.
+---
 
-3.  **Fetch ETAs:**
-    *   For each matched stop (or predefined stop in `singyin.html`), the application calls the `/v1/transport/kmb/stop-eta/{stop_id}` API endpoint.
-    *   `index.html` fetches ETAs for user-selected/matched stops.
-    *   `singyin.html` fetches ETAs for its predefined list of stop IDs and refreshes this data periodically.
+## Usage
 
-4.  **Process and Display ETAs:**
-    *   The fetched ETA data is processed:
-        *   Destination names are formatted.
-        *   ETAs are sorted by route number (alphanumerically) and then by platform if applicable.
-        *   Up to three upcoming ETAs are selected for display.
-    *   The results are rendered into HTML tables, with appropriate styling for route types, scheduled buses, and remarks.
-    *   Platform information is displayed based on the context (smart grouping in `index.html`, dedicated column in `singyin.html`).
+### Main Page (`index.html`)
 
-5.  **Dark Mode:**
-    *   A toggle in `index.html` allows users to switch between light and dark themes.
-    *   `singyin.html` defaults to dark mode.
-    *   The theme preference is saved in `localStorage` and applied on subsequent visits.
+1. Open `index.html` in your browser (via the static server).  
+2. Choose your language from the dropdown in the top-right.  
+3. Toggle Dark Mode on/off.  
+4. Enter a partial stop name (e.g. “Kai Yip Estate”).  
+5. Optionally enter comma-separated route numbers (e.g. `14, 62P, 62X, 259D, X42C`).  
+6. Click **Search ETAs**.  
+7. View results in a table (desktop) or cards (mobile).  
+8. The page auto-refreshes every 30 seconds, updating only changed cells.  
+9. Your last search and theme preference are saved—reload the page and they’ll be restored & auto-searched.
 
-## Setup
+### Predefined Stops Page (`singyin.html`)
 
-No special setup is required beyond hosting these files on a web server or opening them directly in a modern web browser. For the live API calls to work, an internet connection is necessary.
+A lightweight variant that requires **no** user input. It renders two static groups:
 
-To deploy on GitHub Pages:
-1.  Push the `index.html`, `singyin.html`, and `style.css` files to a GitHub repository.
-2.  Enable GitHub Pages in the repository settings (usually deploying from the `main` or `master` branch).
+- **Pak Hung House – East Bound**  
+- **Pak Hung House – West Bound**  
 
-## Potential Future Enhancements
+Each group displays all matching routes and ETAs for the hard-coded stop IDs.  
+Language & theme toggles remain functional.
 
-*   **Geolocation:** Find nearby bus stops.
-*   **Favorite Stops:** Allow users to save frequently used stops (`index.html`).
-*   **Service Status Notifications:** Integrate KMB service alerts.
-*   **PWA Features:** Offline support for cached data, add to home screen.
-*   **Internationalization (i18n):** Support for multiple UI languages beyond EN/TC/SC in data.
-*   **More Advanced Filtering/Sorting:** By time, by specific platform, etc.
+---
 
-## Author
+## Project Structure
 
-*   Timothy
+```
+timoeta/
+├── index.html           # Main search SPA
+├── singyin.html         # Preset-stop view (minor page)
+├── README.md            # This documentation
+├── styles/
+│   └── style.css        # Global styles, theme variables, responsive layout
+└── src/
+    └── app.js           # Core JS: fetch, render, i18n, theming, auto-refresh
+```
 
+---
 
+## Customization
+
+- **Add a new “preset” page**:  
+  1. Copy `singyin.html` → `yourpage.html`.  
+  2. Update the `PRESETS` array at top of that file with your own groups.  
+
+- **Modify language strings**: edit the `LANGS` object in `src/app.js`.  
+
+- **Routes & colors**: adjust `.route-tag.route-XXX` rules in `styles/style.css`.  
+
+- **Auto-refresh interval**: change `setInterval(refresh…, 30000)` in `app.js` / `singyin.html`.  
+
+---
+
+## Contributing
+
+1. Fork the repo.  
+2. Create a feature branch: `git checkout -b feature/YourFeature`.  
+3. Commit your changes: `git commit -am "Add YourFeature"`.  
+4. Push to the branch: `git push origin feature/YourFeature`.  
+5. Open a Pull Request—describe your changes clearly.  
+
+Please adhere to the existing code style (Prettier-formatted JS, CSS variables, ES6 syntax).
+
+---
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+---
+
+## Acknowledgments
+
+- KMB ETA API by etabus.gov.hk  
+- Google Fonts: Roboto & Google Sans families  
+- Inspired by Material Design principles for theming and layout.
