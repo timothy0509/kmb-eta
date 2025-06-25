@@ -65,32 +65,36 @@ const LANGS = {
     destField: 'dest_sc'
   }
 };
+
 const SUFFIX = { en: 'en', tc: 'tc', sc: 'sc' };
 
-let stopListCache = null;
-let rowsData = [];
-let refreshTimer = null;
-let hasBuilt = false;
+let stopListCache = null,
+    rowsData = [],
+    refreshTimer = null,
+    hasBuilt = false;
 
+// Fetch and cache all stops
 async function getStops() {
   if (!stopListCache) {
-    const r = await fetch(API.STOP_LIST);
-    const j = await r.json();
-    stopListCache = j.data || [];
+    const res = await fetch(API.STOP_LIST),
+          json = await res.json();
+    stopListCache = json.data || [];
   }
   return stopListCache;
 }
 
+// Fetch ETAs for one stop
 async function getETAs(id) {
-  const r = await fetch(API.STOP_ETA(id));
-  const j = await r.json();
-  return j.data || [];
+  const res = await fetch(API.STOP_ETA(id)),
+        json = await res.json();
+  return json.data || [];
 }
 
+// Parse stop name to extract title, platform, stopCode
 function parseStopInfo(name) {
-  let title = name;
-  let platform = '';
-  let stopCode = '';
+  let title = name,
+      platform = '',
+      stopCode = '';
   const toks = [...name.matchAll(/[\(（][^\)）]*[\)）]/g)].map(m => m[0]);
   toks.slice(-2).forEach(t => {
     const v = t.slice(1, -1).trim().toUpperCase();
@@ -105,51 +109,53 @@ function parseStopInfo(name) {
   return { title: title.trim(), platform, stopCode };
 }
 
+// Format ISO timestamp to HH:MM:SS (24h)
 function formatTimeOnly(iso) {
   return iso
-    ? new Date(iso).toLocaleTimeString('en-GB', {
+    ? new Date(iso).toLocaleTimeString('en-GB',{
         hour12: false,
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
+        hour:    '2-digit',
+        minute:  '2-digit',
+        second:  '2-digit'
       })
     : '';
 }
 
-function parseRouteStr(r) {
-  const m = r.match(/^([A-Za-z]*)(\d+)([A-Za-z]*)$/);
+// Break route into prefix/number/suffix for sorting
+function parseRouteStr(rt) {
+  const m = rt.match(/^([A-Za-z]*)(\d+)([A-Za-z]*)$/);
   return m
     ? { prefix: m[1], num: +m[2], suffix: m[3] }
-    : { prefix: r, num: 0, suffix: '' };
+    : { prefix: rt, num: 0, suffix: '' };
 }
 
-function compareRoute(a, b) {
-  const x = parseRouteStr(a.route);
-  const y = parseRouteStr(b.route);
+// Compare two route strings logically
+function compareRoute(a,b) {
+  const x = parseRouteStr(a.route),
+        y = parseRouteStr(b.route);
   if (x.prefix !== y.prefix) return x.prefix.localeCompare(y.prefix);
-  if (x.num !== y.num) return x.num - y.num;
+  if (x.num !== y.num)       return x.num - y.num;
   return x.suffix.localeCompare(y.suffix);
 }
 
+// Determine CSS class for route badge color
 function routeTagClass(r) {
-  const up = r.toUpperCase();
-  const { prefix, num } = parseRouteStr(up);
-  if (prefix === 'A') return 'route-A';
-  if (/^[ES]/.test(prefix)) return 'route-ES';
-  if (prefix === 'HK') return 'route-HK';
-  if (prefix === 'N') return 'route-N';
-  if (num >= 100 && num < 200) return 'route-1XX';
-  if (num >= 600 && num < 700) return 'route-6XX';
-  if (num >= 900 && num < 1000) {
-    if (prefix === 'P') return 'route-P9XX';
-    return 'route-9XX';
-  }
+  const up = r.toUpperCase(),
+        { prefix, num } = parseRouteStr(up);
+  if (prefix==='A')        return 'route-A';
+  if (/^[ES]/.test(prefix))return 'route-ES';
+  if (prefix==='HK')       return 'route-HK';
+  if (prefix==='N')        return 'route-N';
+  if (num>=100&&num<200)   return 'route-1XX';
+  if (num>=600&&num<700)   return 'route-6XX';
+  if (num>=900&&num<1000)  return (prefix==='P')?'route-P9XX':'route-9XX';
   return 'route-normal';
 }
 
+// Update all labels/placeholders/button text based on selected language
 function updateUIText() {
-  const lang = document.getElementById('langSelect').value;
-  const L = LANGS[lang];
+  const lang = document.getElementById('langSelect').value,
+        L = LANGS[lang];
   document.getElementById('labelStopName').textContent =
     L.stopNameLabel;
   document.getElementById('stopName').placeholder =
@@ -162,33 +168,30 @@ function updateUIText() {
     L.searchButton;
 }
 
+// Mobile breakpoint check
 function isMobile() {
   return window.innerWidth <= 576;
 }
 
+// Main build function (called on search, lang change, resize)
 async function initialBuild() {
   if (refreshTimer) clearInterval(refreshTimer);
   rowsData = [];
 
-  const lang = document.getElementById('langSelect').value;
-  const suffix = SUFFIX[lang];
-  const L = LANGS[lang];
-  const stopIn = document
-    .getElementById('stopName')
-    .value.trim()
-    .toLowerCase();
-  const rawR = document
-    .getElementById('routeNumbers')
-    .value.trim()
-    .toUpperCase();
-  const filter = rawR.split(',').map(r => r.trim()).filter(Boolean);
+  const lang   = document.getElementById('langSelect').value,
+        suffix = SUFFIX[lang],
+        L      = LANGS[lang],
+        stopIn = document.getElementById('stopName')
+                  .value.trim().toLowerCase(),
+        rawR   = document.getElementById('routeNumbers')
+                  .value.trim().toUpperCase(),
+        filter = rawR.split(',').map(r=>r.trim()).filter(Boolean);
 
-  const all = await getStops();
-  const matches = all.filter(
-    s =>
-      s.name_en.toLowerCase().includes(stopIn) ||
-      s.name_tc.toLowerCase().includes(stopIn) ||
-      s.name_sc.toLowerCase().includes(stopIn)
+  const allStops = await getStops();
+  const matches  = allStops.filter(s =>
+    s.name_en.toLowerCase().includes(stopIn) ||
+    s.name_tc.toLowerCase().includes(stopIn) ||
+    s.name_sc.toLowerCase().includes(stopIn)
   );
 
   const results = document.getElementById('results');
@@ -198,96 +201,129 @@ async function initialBuild() {
     return;
   }
 
+  // Group stops by cleaned title
   const groups = {};
   matches.forEach(s => {
     const full = s[`name_${lang}`];
     const { title, platform, stopCode } = parseStopInfo(full);
-    (groups[title] = groups[title] || []).push({
+    (groups[title] = groups[title]||[]).push({
       stopId: s.stop,
       platform,
       stopCode
     });
   });
 
+  // For each group, fetch ETAs and render
   for (const [title, infos] of Object.entries(groups)) {
     let rows = [];
+
+    // collect rowsData
     for (const info of infos) {
       const data = await getETAs(info.stopId);
       const list = filter.length
-        ? data.filter(e =>
-            filter.includes(e.route.toUpperCase())
-          )
+        ? data.filter(e => filter.includes(e.route.toUpperCase()))
         : data;
 
+      // group by route+dest
       const byKey = {};
       list.forEach(e => {
         const k = `${e.route}|${e.dest_en}`;
-        (byKey[k] = byKey[k] || []).push(e);
+        (byKey[k] = byKey[k]||[]).push(e);
       });
 
       Object.values(byKey).forEach(ent => {
-        ent.sort((a, b) => a.eta_seq - b.eta_seq);
+        // sort by sequence
+        ent.sort((a,b) => a.eta_seq - b.eta_seq);
+
+        // ---- Service-type filtering ----
+        // Try service types 1→2→3
+        const svcOrder = ['1','2','3'];
+        let chosen = [];
+        for (const svc of svcOrder) {
+          const tmp = ent.filter(e=>
+            String(e.service_type)===svc && e.eta
+          );
+          if (tmp.length) {
+            chosen = tmp;
+            break;
+          }
+        }
+        // if no live ETAs in 1–3, fall back to all live ETAs
+        if (!chosen.length) {
+          chosen = ent.filter(e=>e.eta);
+        }
+        // source array for slicing (live of one svc, or any live, or all)
+        const source = chosen.length ? chosen : ent;
+        // take first 3 entries
+        const sliced = [
+          source[0]||{},
+          source[1]||{},
+          source[2]||{}
+        ];
+        // base entry for route/dest fallback
+        const base = source[0]||ent[0]||{};
+
         rows.push({
           stopId: info.stopId,
-          route: ent[0].route,
-          dest: ent[0][`dest_${suffix}`],
+          route:  base.route,
+          dest:   base[`dest_${suffix}`],
           platform: info.platform,
           stopCode: info.stopCode,
-          etas: [ent[0] || {}, ent[1] || {}, ent[2] || {}],
-          remarks: ent
-            .filter(
-              e =>
-                e.eta &&
-                e.rmk_en !== 'Scheduled Bus' &&
-                e[`rmk_${suffix}`]
+          etas:   sliced,
+          remarks: sliced
+            .filter(e =>
+              e.eta &&
+              e.rmk_en!=='Scheduled Bus' &&
+              e[`rmk_${suffix}`]
             )
-            .map(
-              e => `ETA${e.eta_seq}: ${e[`rmk_${suffix}`]}`
+            .map(e =>
+              `ETA${e.eta_seq}: ${e[`rmk_${suffix}`]}`
             )
         });
       });
     }
 
-    if (!rows.length) continue;
-    rows.sort((a, b) => {
-      const aL = a.etas.some(e => e.eta);
-      const bL = b.etas.some(e => e.eta);
+    // sort rows: live first, then route
+    rows.sort((a,b) => {
+      const aL = a.etas.some(e=>e.eta),
+            bL = b.etas.some(e=>e.eta);
       if (aL !== bL) return aL ? -1 : 1;
-      return compareRoute(a, b);
+      return compareRoute(a,b);
     });
 
-    if (isMobile()) {
-      const h3 = document.createElement('h3');
-      h3.textContent = title;
-      results.appendChild(h3);
+    // render group title
+    const h3 = document.createElement('h3');
+    h3.textContent = title;
+    results.appendChild(h3);
 
+    // mobile vs desktop
+    if (isMobile()) {
       rows.forEach(r => {
         const card = document.createElement('div');
         card.className = 'mobile-card fade-in';
 
+        // route
         const c1 = document.createElement('div');
         c1.className = 'mobile-route';
         const tag = document.createElement('span');
-        tag.className = 'route-tag ' + routeTagClass(r.route);
+        tag.className = 'route-tag '+routeTagClass(r.route);
         tag.textContent = r.route;
         c1.appendChild(tag);
 
+        // destination
         const c2 = document.createElement('div');
-        c2.className =
-          'mobile-dest' +
-          (r.etas.every(e => !e.eta)
-            ? ' mobile-noeta-text'
-            : '');
+        c2.className = 'mobile-dest' +
+          (r.etas.every(e=>!e.eta)?' mobile-noeta-text':'');
         c2.textContent = r.dest;
 
+        // times
         const c3 = document.createElement('div');
         c3.className = 'mobile-times';
-        if (r.etas.some(e => e.eta)) {
-          r.etas.filter(e => e.eta).forEach((e, i) => {
+        if (r.etas.some(e=>e.eta)) {
+          r.etas.filter(e=>e.eta).forEach((e,i) => {
             const d = document.createElement('div');
-            d.className =
-              'eta-time' + (i === 0 ? ' eta-first' : '');
-            if (i > 0 && e.rmk_en === 'Scheduled Bus')
+            d.className = 'eta-time'+(i===0?' eta-first':'');
+            if (i>0 && e.rmk_en==='Scheduled Bus')
               d.classList.add('scheduled-eta');
             d.textContent = formatTimeOnly(e.eta);
             c3.appendChild(d);
@@ -299,58 +335,54 @@ async function initialBuild() {
 
         rowsData.push({
           stopId: r.stopId,
-          route: r.route,
+          route:  r.route,
           mobileContainer: c3
         });
       });
     } else {
-      const h3 = document.createElement('h3');
-      h3.textContent = title;
-      results.appendChild(h3);
-
       const wrap = document.createElement('div');
       wrap.className = 'eta-table-container';
       const table = document.createElement('table');
       table.className = 'eta-results';
 
-      const showPlat = rows.some(r => r.platform);
+      const showPlat = rows.some(r=>r.platform);
       const ths = [
         LANGS[lang].tableHeaders.Route,
         LANGS[lang].tableHeaders.Destination,
-        ...(showPlat
-          ? [LANGS[lang].tableHeaders.Platform]
-          : []),
+        ...(showPlat?[LANGS[lang].tableHeaders.Platform]:[]),
         LANGS[lang].tableHeaders.StopCode,
         LANGS[lang].tableHeaders.ETA1,
         LANGS[lang].tableHeaders.ETA2,
         LANGS[lang].tableHeaders.ETA3,
         LANGS[lang].tableHeaders.Remarks
-      ]
-        .map(h => `<th>${h}</th>`)
-        .join('');
+      ].map(h=>`<th>${h}</th>`).join('');
+
       table.innerHTML = `<thead><tr>${ths}</tr></thead>`;
       const tbody = document.createElement('tbody');
 
       rows.forEach(r => {
-        const noEta = !r.etas.some(e => e.eta);
+        const noEta = !r.etas.some(e=>e.eta);
         const tr = document.createElement('tr');
         tr.className = noEta
           ? 'no-eta-row eta-data-row'
           : 'eta-data-row';
 
+        // route cell
         const tdRt = document.createElement('td');
-        const sp = document.createElement('span');
         tdRt.className = 'eta-route-cell';
-        sp.className = 'route-tag ' + routeTagClass(r.route);
+        const sp = document.createElement('span');
+        sp.className = 'route-tag '+routeTagClass(r.route);
         sp.textContent = r.route;
         tdRt.appendChild(sp);
         tr.appendChild(tdRt);
 
+        // destination
         const tdD = document.createElement('td');
         tdD.textContent = r.dest;
         if (noEta) tdD.classList.add('no-eta-text');
         tr.appendChild(tdD);
 
+        // platform
         if (showPlat) {
           const tdP = document.createElement('td');
           tdP.textContent = r.platform;
@@ -358,38 +390,40 @@ async function initialBuild() {
           tr.appendChild(tdP);
         }
 
+        // stop code
         const tdC = document.createElement('td');
         tdC.textContent = r.stopCode;
         if (noEta) tdC.classList.add('no-eta-text');
         tr.appendChild(tdC);
 
         if (noEta) {
-          const colspan = 4 + (showPlat ? 0 : 0);
           const tdR = document.createElement('td');
-          tdR.colSpan = colspan;
+          tdR.colSpan = 4 + (showPlat?1:0);
           tdR.className = 'remark-only-cell';
-          tdR.textContent = r.remarks[0] || LANGS[lang].noEtas;
+          tdR.textContent = r.remarks[0]||L.noEtas;
           tr.appendChild(tdR);
         } else {
+          // ETA cells
           const etaCells = [];
-          r.etas.forEach((e, i) => {
+          r.etas.forEach((e,i) => {
             const td = document.createElement('td');
             td.className =
-              'desktop-eta-cell' +
-              (i === 0 ? ' eta-first' : '');
+              'desktop-eta-cell'+(i===0?' eta-first':'');
             td.textContent = formatTimeOnly(e.eta);
-            if (i > 0 && e.rmk_en === 'Scheduled Bus')
+            if (i>0 && e.rmk_en==='Scheduled Bus')
               td.classList.add('scheduled-eta');
             tr.appendChild(td);
             etaCells.push(td);
           });
+
+          // remarks
           const tdR = document.createElement('td');
           tdR.textContent = r.remarks.join('; ');
           tr.appendChild(tdR);
 
           rowsData.push({
             stopId: r.stopId,
-            route: r.route,
+            route:  r.route,
             etaCells,
             remCell: tdR
           });
@@ -405,53 +439,71 @@ async function initialBuild() {
     }
   }
 
-  // start auto‐refresh only after first build
   refreshTimer = setInterval(refreshEtas, 30000);
 }
 
+// Auto-refresh only updates ETA cells & remarks
 async function refreshEtas() {
   for (const rd of rowsData) {
     const raw = await getETAs(rd.stopId);
-    const ent = raw
+    let ent = raw
       .filter(e => e.route === rd.route)
-      .sort((a, b) => a.eta_seq - b.eta_seq);
-    const newEtas = [ent[0] || {}, ent[1] || {}, ent[2] || {}];
+      .sort((a,b)=>a.eta_seq-b.eta_seq);
+
+    // service-type filtering
+    const svcOrder = ['1','2','3'];
+    let chosen = [];
+    for (const svc of svcOrder) {
+      const tmp = ent.filter(e=>
+        String(e.service_type)===svc && e.eta
+      );
+      if (tmp.length) { chosen = tmp; break; }
+    }
+    if (!chosen.length) {
+      chosen = ent.filter(e=>e.eta);
+    }
+    const source = chosen.length ? chosen : ent;
+    const newEtas = [
+      source[0]||{},
+      source[1]||{},
+      source[2]||{}
+    ];
 
     if (rd.mobileContainer) {
       rd.mobileContainer.innerHTML = '';
-      if (newEtas.some(e => e.eta)) {
-        newEtas.filter(e => e.eta).forEach((e, i) => {
+      if (newEtas.some(e=>e.eta)) {
+        newEtas.filter(e=>e.eta).forEach((e,i) => {
           const d = document.createElement('div');
-          d.className =
-            'eta-time' + (i === 0 ? ' eta-first' : '');
-          if (i > 0 && e.rmk_en === 'Scheduled Bus')
+          d.className = 'eta-time'+(i===0?' eta-first':'');
+          if (i>0&&e.rmk_en==='Scheduled Bus')
             d.classList.add('scheduled-eta');
           d.textContent = formatTimeOnly(e.eta);
           rd.mobileContainer.appendChild(d);
         });
       }
     } else {
-      newEtas.forEach((e, i) => {
-        const td = rd.etaCells[i];
-        const txt = formatTimeOnly(e.eta);
+      // update ETA cells
+      newEtas.forEach((e,i) => {
+        const td = rd.etaCells[i],
+              txt = formatTimeOnly(e.eta);
         if (td.textContent !== txt) {
           td.textContent = txt;
           td.classList.add('eta-updated');
-          setTimeout(() => td.classList.remove('eta-updated'), 1000);
+          setTimeout(()=>td.classList.remove('eta-updated'),1000);
         }
-        if (i > 0 && e.rmk_en === 'Scheduled Bus')
+        if (i>0 && e.rmk_en==='Scheduled Bus')
           td.classList.add('scheduled-eta');
         else td.classList.remove('scheduled-eta');
       });
 
-      const lang = document.getElementById('langSelect').value;
-      const suffix = SUFFIX[lang];
+      // update remarks
+      const lang = document.getElementById('langSelect').value,
+            suffix = SUFFIX[lang];
       const remarksArr = newEtas
-        .filter(
-          e =>
-            e.eta &&
-            e.rmk_en !== 'Scheduled Bus' &&
-            e[`rmk_${suffix}`]
+        .filter(e =>
+          e.eta &&
+          e.rmk_en!=='Scheduled Bus' &&
+          e[`rmk_${suffix}`]
         )
         .map(e => `ETA${e.eta_seq}: ${e[`rmk_${suffix}`]}`);
       const remarkText = remarksArr.length
@@ -460,16 +512,13 @@ async function refreshEtas() {
       if (rd.remCell.textContent !== remarkText) {
         rd.remCell.textContent = remarkText;
         rd.remCell.classList.add('eta-updated');
-        setTimeout(
-          () => rd.remCell.classList.remove('eta-updated'),
-          1000
-        );
+        setTimeout(()=>rd.remCell.classList.remove('eta-updated'),1000);
       }
     }
   }
 }
 
-// Ripple effect
+// Ripple effect on buttons
 document.addEventListener('click', e => {
   const btn = e.target.closest('.ripple');
   if (!btn) return;
@@ -489,9 +538,8 @@ document.addEventListener('click', e => {
 
 // Theme toggle
 const themeToggle = document.getElementById('themeToggle');
-themeToggle.checked = document.documentElement.classList.contains(
-  'dark-mode'
-);
+themeToggle.checked =
+  document.documentElement.classList.contains('dark-mode');
 themeToggle.addEventListener('change', e => {
   document.documentElement.classList.toggle(
     'dark-mode',
@@ -503,47 +551,28 @@ themeToggle.addEventListener('change', e => {
   );
 });
 
-// Save search params
-function saveSearchParams() {
-  const lang = document.getElementById('langSelect').value;
-  const stopName = document.getElementById('stopName').value.trim();
-  const routeNumbers = document
-    .getElementById('routeNumbers')
-    .value.trim();
-  localStorage.setItem(
-    'lastSearch',
-    JSON.stringify({ lang, stopName, routeNumbers })
-  );
-}
-
-// Submit handler
-document
-  .getElementById('searchForm')
+// Search form submission
+document.getElementById('searchForm')
   .addEventListener('submit', ev => {
     ev.preventDefault();
     updateUIText();
-    saveSearchParams();
     hasBuilt = true;
     initialBuild();
   });
 
-// Language change
-document
-  .getElementById('langSelect')
+// Language selector
+document.getElementById('langSelect')
   .addEventListener('change', () => {
     updateUIText();
-    if (hasBuilt) {
-      saveSearchParams();
-      initialBuild();
-    }
+    if (hasBuilt) initialBuild();
   });
 
-// Resize handler
+// Rebuild on resize (if already built)
 window.addEventListener('resize', () => {
   if (hasBuilt) initialBuild();
 });
 
-// Initialize UI and attempt auto-search
+// Initialize UI text and, if present, auto-run last search
 updateUIText();
 const last = localStorage.getItem('lastSearch');
 if (last) {
