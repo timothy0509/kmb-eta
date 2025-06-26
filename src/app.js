@@ -156,6 +156,7 @@ function routeTagClass(r) {
   if (prefix === 'HK') return 'route-HK';
   if (prefix === 'N') return 'route-N';
   if (num >= 100 && num < 200) return 'route-1XX';
+  if (num >= 300 && num < 400) return 'route-1XX';
   if (num >= 600 && num < 700) return 'route-6XX';
   if (num >= 900 && num < 1000)
     return prefix === 'P' ? 'route-P9XX' : 'route-9XX';
