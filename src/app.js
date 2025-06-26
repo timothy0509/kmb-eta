@@ -1,11 +1,13 @@
 // src/app.js
 
+// --- API Endpoints ---
 const API = {
   STOP_LIST: 'https://data.etabus.gov.hk/v1/transport/kmb/stop/',
   STOP_ETA: id =>
     `https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${id}`
 };
 
+// --- Internationalization strings ---
 const LANGS = {
   en: {
     stopNameLabel: 'Stop Name (partial)',
@@ -65,32 +67,36 @@ const LANGS = {
     destField: 'dest_sc'
   }
 };
-const SUFFIX = { en: 'en', tc: 'tc', sc: 'sc' };
 
-let stopListCache = null,
-    rowsData      = [],
-    refreshTimer  = null,
-    hasBuilt      = false;
+// suffix for dest/rmk fields
+const SUFFIX = { en:'en', tc:'tc', sc:'sc' };
 
-// Fetch all stops (cached)
+// --- Global State ---
+let stopListCache = null;
+let rowsData      = [];
+let refreshTimer  = null;
+let hasBuilt      = false;
+
+// --- Helpers ---
+
+// Fetch and cache list of all stops
 async function getStops() {
   if (!stopListCache) {
-    const r = await fetch(API.STOP_LIST),
-          j = await r.json();
-    stopListCache = j.data || [];
+    const res = await fetch(API.STOP_LIST);
+    const json = await res.json();
+    stopListCache = json.data || [];
   }
   return stopListCache;
 }
 
-// Fetch ETAs for a stop
+// Fetch ETA data for a given stop ID
 async function getETAs(id) {
-  const r = await fetch(API.STOP_ETA(id)),
-        j = await r.json();
-  return j.data || [];
+  const res = await fetch(API.STOP_ETA(id));
+  const json = await res.json();
+  return json.data || [];
 }
 
-// Extract title, platform, stopCode from any-language stop name,
-// with fallback to English for stopCode if missing.
+// Parse name to extract cleaned title, platform, stopCode
 function parseStopInfo(name) {
   let title = name,
       platform = '',
@@ -112,10 +118,10 @@ function parseStopInfo(name) {
   return { title: title.trim(), platform, stopCode };
 }
 
-// Format ISO timestamp to HH:MM:SS
+// Format ISO timestamp to "HH:MM:SS"
 function formatTimeOnly(iso) {
   return iso
-    ? new Date(iso).toLocaleTimeString('en-GB', {
+    ? new Date(iso).toLocaleTimeString('en-GB',{
         hour12: false,
         hour: '2-digit',
         minute: '2-digit',
@@ -124,44 +130,41 @@ function formatTimeOnly(iso) {
     : '';
 }
 
-// Parse route into prefix/number/suffix for sorting
-function parseRouteStr(rt) {
-  const m = rt.match(/^([A-Za-z]*)(\d+)([A-Za-z]*)$/);
+// Break route string into prefix/number/suffix
+function parseRouteStr(r) {
+  const m = r.match(/^([A-Za-z]*)(\d+)([A-Za-z]*)$/);
   return m
     ? { prefix: m[1], num: +m[2], suffix: m[3] }
-    : { prefix: rt, num: 0, suffix: '' };
+    : { prefix: r, num: 0, suffix: '' };
 }
 
-// Compare two routes
-function compareRoute(a,b) {
+// Compare two route rows
+function compareRoute(a, b) {
   const x = parseRouteStr(a.route),
         y = parseRouteStr(b.route);
-  if (x.prefix !== y.prefix)
-    return x.prefix.localeCompare(y.prefix);
-  if (x.num !== y.num)
-    return x.num - y.num;
+  if (x.prefix !== y.prefix) return x.prefix.localeCompare(y.prefix);
+  if (x.num !== y.num)       return x.num - y.num;
   return x.suffix.localeCompare(y.suffix);
 }
 
-// Determine CSS class for route tag
+// Get CSS class for route badge
 function routeTagClass(r) {
   const up = r.toUpperCase(),
         { prefix, num } = parseRouteStr(up);
-  if (prefix === 'A')         return 'route-A';
-  if (/^[ES]/.test(prefix))   return 'route-ES';
-  if (prefix === 'HK')        return 'route-HK';
-  if (prefix === 'N')         return 'route-N';
-  if (num >= 100 && num < 200) return 'route-1XX';
-  if (num >= 600 && num < 700) return 'route-6XX';
-  if (num >= 900 && num < 1000)
-    return prefix === 'P' ? 'route-P9XX' : 'route-9XX';
+  if (prefix==='A')          return 'route-A';
+  if (/^[ES]/.test(prefix))  return 'route-ES';
+  if (prefix==='HK')         return 'route-HK';
+  if (prefix==='N')          return 'route-N';
+  if (num>=100&&num<200)     return 'route-1XX';
+  if (num>=600&&num<700)     return 'route-6XX';
+  if (num>=900&&num<1000)    return prefix==='P'?'route-P9XX':'route-9XX';
   return 'route-normal';
 }
 
-// Update text labels based on selected language
+// Update UI text (labels/placeholders/button)
 function updateUIText() {
   const lang = document.getElementById('langSelect').value,
-        L = LANGS[lang];
+        L    = LANGS[lang];
   document.getElementById('labelStopName').textContent =
     L.stopNameLabel;
   document.getElementById('stopName').placeholder =
@@ -174,12 +177,14 @@ function updateUIText() {
     L.searchButton;
 }
 
-// Check mobile breakpoint
+// Check if viewport is mobile
 function isMobile() {
   return window.innerWidth <= 576;
 }
 
-// Main build: fetch, filter, group, render
+// --- Index Page Logic ---
+
+// Render ETA tables/cards for index.html
 async function initialBuild() {
   if (refreshTimer) clearInterval(refreshTimer);
   rowsData = [];
@@ -207,45 +212,44 @@ async function initialBuild() {
     return;
   }
 
-  // Group stops by cleaned title
+  // Group by cleaned title
   const groups = {};
   matches.forEach(s => {
-    const fullName = s[`name_${lang}`];
-    let { title, platform, stopCode } = parseStopInfo(fullName);
-    // fallback stopCode from English name if missing
-    if (!stopCode) {
-      const enInfo = parseStopInfo(s.name_en);
-      stopCode = enInfo.stopCode;
+    const full    = s[`name_${lang}`],
+          info    = parseStopInfo(full);
+    // fallback stopCode from English if missing
+    if (!info.stopCode) {
+      info.stopCode = parseStopInfo(s.name_en).stopCode;
     }
-    (groups[title] = groups[title]||[]).push({
-      stopId: s.stop,
-      platform,
-      stopCode
+    (groups[info.title] = groups[info.title]||[]).push({
+      stopId:   s.stop,
+      platform: info.platform,
+      stopCode: info.stopCode
     });
   });
 
-  // Render each group
+  // Build each group
   for (const [title, infos] of Object.entries(groups)) {
     let rows = [];
 
-    // Gather row data
+    // collect rows
     for (const info of infos) {
       const data = await getETAs(info.stopId),
             list = filter.length
               ? data.filter(e=>filter.includes(e.route.toUpperCase()))
               : data;
 
-      // Group ETAs by route+dest
+      // group by route+dest
       const byKey = {};
-      list.forEach(e => {
+      list.forEach(e=>{
         const key = `${e.route}|${e.dest_en}`;
         (byKey[key] = byKey[key]||[]).push(e);
       });
 
-      Object.values(byKey).forEach(ent => {
+      Object.values(byKey).forEach(ent=>{
         ent.sort((a,b)=>a.eta_seq - b.eta_seq);
 
-        // Pick one service type (1→2→3) that has live ETAs
+        // pick single service type (1→2→3)
         const svcOrder = ['1','2','3'];
         let chosen = [];
         for (const svc of svcOrder) {
@@ -254,73 +258,62 @@ async function initialBuild() {
           );
           if (tmp.length) { chosen = tmp; break; }
         }
-        // fallback to any live ETAs
         if (!chosen.length) chosen = ent.filter(e=>e.eta);
         const source = chosen.length ? chosen : ent;
+        const sliced = [source[0]||{}, source[1]||{}, source[2]||{}];
+        const base   = source[0]||ent[0]||{};
 
-        // take up to 3 arrivals
-        const sliced = [
-          source[0]||{},
-          source[1]||{},
-          source[2]||{}
-        ];
-        const base = source[0]||ent[0]||{};
-
-        // build two remark sets:
-        // numberedRemarks for live rows, noetaRemarks for no-ETA fallback
+        // build remarks arrays
         const numberedRemarks = sliced
           .filter(e=>e.eta && e.rmk_en!=='Scheduled Bus' && e[`rmk_${suffix}`])
           .map(e=>`ETA${e.eta_seq}: ${e[`rmk_${suffix}`]}`);
-
         const noetaRemarks = ent
-          .filter(e=> e[`rmk_${suffix}`] && e.rmk_en!=='Scheduled Bus')
+          .filter(e=>e.rmk_en!=='Scheduled Bus' && e[`rmk_${suffix}`])
           .map(e=>e[`rmk_${suffix}`]);
 
         rows.push({
-          stopId:        info.stopId,
-          route:         base.route,
-          dest:          base[`dest_${suffix}`],
-          platform:      info.platform,
-          stopCode:      info.stopCode,
-          etas:          sliced,
+          stopId:         info.stopId,
+          route:          base.route,
+          dest:           base[`dest_${suffix}`],
+          platform:       info.platform,
+          stopCode:       info.stopCode,
+          etas:           sliced,
           numberedRemarks,
           noetaRemarks
         });
       });
     }
 
-    // sort rows (live first, then route)
+    // sort: live first, then route
     rows.sort((a,b)=>{
-      const aLive = a.etas.some(e=>e.eta),
-            bLive = b.etas.some(e=>e.eta);
-      if (aLive !== bLive) return aLive ? -1 : 1;
+      const aL = a.etas.some(e=>e.eta), bL = b.etas.some(e=>e.eta);
+      if (aL!==bL) return aL?-1:1;
       return compareRoute(a,b);
     });
 
-    // Group header
+    // group header
     const h3 = document.createElement('h3');
     h3.textContent = title;
     results.appendChild(h3);
 
-    // Render mobile or desktop
+    // render mobile / desktop
     if (isMobile()) {
-      // Mobile cards
       rows.forEach(r => {
         const card = document.createElement('div');
         card.className = 'mobile-card fade-in';
 
         // route
-        const c1 = document.createElement('div');
+        const c1 = document.createElement('div'),
+              tag = document.createElement('span');
         c1.className = 'mobile-route';
-        const tag = document.createElement('span');
-        tag.className = 'route-tag ' + routeTagClass(r.route);
+        tag.className = 'route-tag '+routeTagClass(r.route);
         tag.textContent = r.route;
         c1.appendChild(tag);
 
         // dest
         const c2 = document.createElement('div');
         c2.className = 'mobile-dest' +
-          (r.etas.every(e=>!e.eta)?' mobile-noeta-text':'');
+          (r.etas.every(e=>!e.eta)? ' mobile-noeta-text' : '');
         c2.textContent = r.dest;
 
         // times / remark
@@ -336,14 +329,14 @@ async function initialBuild() {
             c3.appendChild(d);
           });
         } else {
-          const txt = r.noetaRemarks[0] || L.noEtas;
-          const d   = document.createElement('div');
+          const txt = r.noetaRemarks[0] || L.noEtas,
+                d   = document.createElement('div');
           d.className = 'mobile-noeta';
           d.textContent = txt;
           c3.appendChild(d);
         }
 
-        card.append(c1, c2, c3);
+        card.append(c1,c2,c3);
         results.appendChild(card);
 
         rowsData.push({
@@ -353,14 +346,13 @@ async function initialBuild() {
         });
       });
     } else {
-      // Desktop table
-      const wrap  = document.createElement('div');
+      const wrap = document.createElement('div');
       wrap.className = 'eta-table-container';
       const table = document.createElement('table');
       table.className = 'eta-results';
 
       const showPlat = rows.some(r=>r.platform);
-      const headers = [
+      const hdrs = [
         LANGS[lang].tableHeaders.Route,
         LANGS[lang].tableHeaders.Destination,
         ...(showPlat?[LANGS[lang].tableHeaders.Platform]:[]),
@@ -370,12 +362,13 @@ async function initialBuild() {
         LANGS[lang].tableHeaders.ETA3,
         LANGS[lang].tableHeaders.Remarks
       ];
-      table.innerHTML = `<thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead>`;
-
+      table.innerHTML =
+        `<thead><tr>${hdrs.map(h=>`<th>${h}</th>`).join('')}</tr></thead>`;
       const tbody = document.createElement('tbody');
+
       rows.forEach(r => {
         const noEta = !r.etas.some(e=>e.eta);
-        const tr    = document.createElement('tr');
+        const tr = document.createElement('tr');
         tr.className = noEta
           ? 'no-eta-row eta-data-row'
           : 'eta-data-row';
@@ -389,7 +382,7 @@ async function initialBuild() {
         tdRt.appendChild(sp);
         tr.appendChild(tdRt);
 
-        // destination
+        // dest
         const tdD = document.createElement('td');
         tdD.textContent = r.dest;
         if (noEta) tdD.classList.add('no-eta-text');
@@ -403,34 +396,29 @@ async function initialBuild() {
           tr.appendChild(tdP);
         }
 
-        // stop code
+        // stopCode
         const tdC = document.createElement('td');
         tdC.textContent = r.stopCode;
         if (noEta) tdC.classList.add('no-eta-text');
         tr.appendChild(tdC);
 
         if (noEta) {
-          // remark-only
           const tdR = document.createElement('td');
           tdR.colSpan   = 4 + (showPlat?1:0);
           tdR.className = 'remark-only-cell';
           tdR.textContent = r.noetaRemarks[0] || L.noEtas;
           tr.appendChild(tdR);
         } else {
-          // ETAs
           const etaCells = [];
           r.etas.forEach((e,i) => {
             const td = document.createElement('td');
-            td.className =
-              'desktop-eta-cell'+(i===0?' eta-first':'');
+            td.className = 'desktop-eta-cell'+(i===0?' eta-first':'');
             td.textContent = formatTimeOnly(e.eta);
-            if (i>0 && e.rmk_en==='Scheduled Bus')
+            if (i>0&&e.rmk_en==='Scheduled Bus')
               td.classList.add('scheduled-eta');
             tr.appendChild(td);
             etaCells.push(td);
           });
-
-          // remarks
           const tdR = document.createElement('td');
           tdR.textContent = r.numberedRemarks.join('; ');
           tr.appendChild(tdR);
@@ -453,10 +441,11 @@ async function initialBuild() {
     }
   }
 
+  // auto-refresh
   refreshTimer = setInterval(refreshEtas, 30000);
 }
 
-// Auto-refresh ETA cells & remarks only
+// Refresh only ETAs & remarks
 async function refreshEtas() {
   for (const rd of rowsData) {
     const raw = await getETAs(rd.stopId);
@@ -464,6 +453,7 @@ async function refreshEtas() {
       .filter(e=>e.route===rd.route)
       .sort((a,b)=>a.eta_seq - b.eta_seq);
 
+    // pick service-type subset
     const svcOrder = ['1','2','3'];
     let chosen = [];
     for (const svc of svcOrder) {
@@ -473,7 +463,7 @@ async function refreshEtas() {
       if (tmp.length) { chosen = tmp; break; }
     }
     if (!chosen.length) chosen = ent.filter(e=>e.eta);
-    const source = chosen.length ? chosen : ent;
+    const source = chosen.length?chosen:ent;
     const newEtas = [
       source[0]||{}, source[1]||{}, source[2]||{}
     ];
@@ -483,51 +473,51 @@ async function refreshEtas() {
       if (newEtas.some(e=>e.eta)) {
         newEtas.filter(e=>e.eta).forEach((e,i)=>{
           const d = document.createElement('div');
-          d.className =
-            'eta-time'+(i===0?' eta-first':'');
-          if (i>0 && e.rmk_en==='Scheduled Bus')
+          d.className = 'eta-time'+(i===0?' eta-first':'');
+          if (i>0&&e.rmk_en==='Scheduled Bus')
             d.classList.add('scheduled-eta');
           d.textContent = formatTimeOnly(e.eta);
           rd.mobileContainer.appendChild(d);
         });
       } else {
-        // no remarks on mobile if no ETAs
+        // no remark on mobile if no ETA
       }
     } else {
-      // update ETAs
+      // update ETA cells
       newEtas.forEach((e,i)=>{
-        const td = rd.etaCells[i],
+        const td  = rd.etaCells[i],
               txt = formatTimeOnly(e.eta);
-        if (td.textContent!==txt) {
+        if (td.textContent!==txt){
           td.textContent = txt;
           td.classList.add('eta-updated');
           setTimeout(()=>td.classList.remove('eta-updated'),1000);
         }
         if (i>0&&e.rmk_en==='Scheduled Bus')
           td.classList.add('scheduled-eta');
-        else td.classList.remove('scheduled-eta');
+        else
+          td.classList.remove('scheduled-eta');
       });
 
       // update remarks
-      const lang = document.getElementById('langSelect').value,
-            suffix = SUFFIX[lang];
+      const lang   = document.getElementById('langSelect').value,
+            suffix = SUFFIX[lang],
+            Lno    = LANGS[lang].noEtas;
 
-      const liveRemarks = newEtas
+      const numbered = newEtas
         .filter(e=>e.eta && e.rmk_en!=='Scheduled Bus' && e[`rmk_${suffix}`])
         .map(e=>`ETA${e.eta_seq}: ${e[`rmk_${suffix}`]}`);
 
-      let remarkText = '';
-      if (liveRemarks.length) {
-        remarkText = liveRemarks.join('; ');
+      let remarkText;
+      if (numbered.length) {
+        remarkText = numbered.join('; ');
       } else {
-        // no live ETAs → show first unnumbered remark if any
-        const allRemarks = ent
-          .filter(e=> e[`rmk_${suffix}`] && e.rmk_en!=='Scheduled Bus')
-          .map(e=>e[`rmk_${suffix}`]);
-        remarkText = allRemarks[0] || '';
+        const noRem = ent
+          .filter(x=>x.rmk_en!=='Scheduled Bus' && x[`rmk_${suffix}`])
+          .map(x=>x[`rmk_${suffix}`]);
+        remarkText = noRem[0] || Lno;
       }
 
-      if (rd.remCell.textContent !== remarkText) {
+      if (rd.remCell.textContent!==remarkText){
         rd.remCell.textContent = remarkText;
         rd.remCell.classList.add('eta-updated');
         setTimeout(()=>rd.remCell.classList.remove('eta-updated'),1000);
@@ -537,62 +527,73 @@ async function refreshEtas() {
 }
 
 // Ripple effect
-document.addEventListener('click', e=>{
+document.addEventListener('click', e => {
   const btn = e.target.closest('.ripple');
   if (!btn) return;
   const r = btn.getBoundingClientRect();
-  btn.style.setProperty('--ripple-x',`${e.clientX-r.left}px`);
-  btn.style.setProperty('--ripple-y',`${e.clientY-r.top}px`);
+  btn.style.setProperty('--ripple-x', `${e.clientX - r.left}px`);
+  btn.style.setProperty('--ripple-y', `${e.clientY - r.top}px`);
   btn.classList.remove('animate'); void btn.offsetWidth;
   btn.classList.add('animate');
 });
 
-// Theme toggle wiring
+// Theme toggle
 const themeToggle = document.getElementById('themeToggle');
-themeToggle.checked = document.documentElement.classList.contains('dark-mode');
-themeToggle.addEventListener('change', e=>{
-  document.documentElement.classList.toggle('dark-mode', e.target.checked);
-  localStorage.setItem('theme', e.target.checked?'dark':'light');
-});
+themeToggle && (() => {
+  themeToggle.checked = document.documentElement.classList.contains('dark-mode');
+  themeToggle.addEventListener('change', e => {
+    document.documentElement.classList.toggle('dark-mode', e.target.checked);
+    localStorage.setItem('theme', e.target.checked ? 'dark' : 'light');
+  });
+})();
 
-// Search form submit
-document.getElementById('searchForm')
-  .addEventListener('submit', ev=>{
+// ========== Index page hooks only ==========
+const searchForm = document.getElementById('searchForm');
+if (searchForm) {
+  // on search submit
+  searchForm.addEventListener('submit', ev => {
     ev.preventDefault();
     updateUIText();
-    hasBuilt = true;
-    // save search parameters
-    localStorage.setItem('lastSearch',
+    // save last search
+    localStorage.setItem(
+      'lastSearch',
       JSON.stringify({
         lang: document.getElementById('langSelect').value,
         stopName: document.getElementById('stopName').value.trim(),
         routeNumbers: document.getElementById('routeNumbers').value.trim()
       })
     );
+    hasBuilt = true;
     initialBuild();
   });
 
-// Language change
-document.getElementById('langSelect')
-  .addEventListener('change', ()=>{
-    updateUIText();
-    if (hasBuilt) initialBuild();
+  // on language change
+  document.getElementById('langSelect')
+    .addEventListener('change', () => {
+      updateUIText();
+      if (hasBuilt) initialBuild();
+    });
+
+  // only rebuild on crossing mobile breakpoint
+  let _prevIsMob = isMobile();
+  window.addEventListener('resize', () => {
+    const nowMob = isMobile();
+    if (nowMob !== _prevIsMob) {
+      _prevIsMob = nowMob;
+      if (hasBuilt) initialBuild();
+    }
   });
 
-// Resize
-window.addEventListener('resize', ()=>{
-  if (hasBuilt) initialBuild();
-});
-
-// Initialize UI, restore last search if any
-updateUIText();
-const last = localStorage.getItem('lastSearch');
-if (last) {
-  const { lang, stopName, routeNumbers } = JSON.parse(last);
-  document.getElementById('langSelect').value = lang;
-  document.getElementById('stopName').value    = stopName;
-  document.getElementById('routeNumbers').value = routeNumbers;
+  // initialize index page
   updateUIText();
-  hasBuilt = true;
-  initialBuild();
+  const last = localStorage.getItem('lastSearch');
+  if (last) {
+    const { lang, stopName, routeNumbers } = JSON.parse(last);
+    document.getElementById('langSelect').value = lang;
+    document.getElementById('stopName').value    = stopName;
+    document.getElementById('routeNumbers').value = routeNumbers;
+    updateUIText();
+    hasBuilt = true;
+    initialBuild();
+  }
 }

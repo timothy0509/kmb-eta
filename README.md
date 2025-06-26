@@ -1,170 +1,289 @@
 # TimoETA
 
-A lightweight, responsive single‐page application for fetching and displaying real‐time Estimated Time of Arrival (ETA) data for Kowloon Motor Bus (KMB) stops in Hong Kong.  
-Built with plain HTML, CSS (CSS Custom Properties + flex/grid), and vanilla JavaScript—no frontend framework required.
+A lightweight, responsive single‐page application (SPA) for fetching and displaying real‐time Estimated Time of Arrival (ETA) data for Kowloon Motor Bus (KMB) stops in Hong Kong. Built with plain HTML, CSS (CSS Custom Properties, flexbox, and CSS Grid), and vanilla JavaScript—no frontend framework required.
 
 ---
 
 ## Table of Contents
 
-1. [Project Overview](#project-overview)  
-2. [Features](#features)  
-3. [Getting Started](#getting-started)  
-   1. [Prerequisites](#prerequisites)  
-   2. [Installation](#installation)  
-   3. [Running Locally](#running-locally)  
-4. [Usage](#usage)  
-   1. [Main Page (`index.html`)](#main-page-indexhtml)  
-   2. [Predefined Stops Page (`singyin.html`)](#predefined-stops-page-singyinhtml)  
-5. [Project Structure](#project-structure)  
-6. [Customization](#customization)  
-7. [Contributing](#contributing)  
-8. [License](#license)  
-9. [Acknowledgments](#acknowledgments)  
+1.  [Project Overview](#project-overview)
+2.  [Features](#features)
+3.  [Getting Started](#getting-started)
+    *   [Prerequisites](#prerequisites)
+    *   [Installation](#installation)
+    *   [Running Locally](#running-locally)
+4.  [Usage](#usage)
+    *   [Main Search Page (`index.html`)](#main-search-page-indexhtml)
+    *   [Predefined Stops Page (`singyin.html`)](#predefined-stops-page-singyinhtml)
+5.  [Project Structure](#project-structure)
+6.  [Component Breakdown](#component-breakdown)
+    *   [`index.html`](#indexhtml)
+    *   [`singyin.html`](#singyinhtml)
+    *   [`src/app.js`](#srcappjs)
+    *   [`styles/style.css`](#stylesstylecss)
+7.  [Customization](#customization)
+8.  [Contributing](#contributing)
+9.  [License](#license)
+10. [Acknowledgments](#acknowledgments)
 
 ---
 
-## Project Overview
+## 1. Project Overview
 
-TimoETA provides a simple interface to:
+TimoETA provides a user-friendly interface to:
 
-- Search KMB bus stops by partial name.  
-- Optionally filter by comma‐separated route numbers.  
-- View up to three forthcoming ETAs per route, with “live” times highlighted.  
-- See human-readable remarks (e.g. delays), annotated with which ETA they apply to.  
-- Auto-refresh every 30 seconds without a full page reload.  
-- Toggle between English, Traditional Chinese, and Simplified Chinese.  
-- Choose light or dark theme (persisted in `localStorage`).  
-- Adapt between desktop (table view) and mobile (card view) layouts.  
+-   **Search** KMB bus stops by partial name.
+-   **Filter** results by optional, comma-separated route numbers.
+-   **Display** up to three forthcoming ETAs per matching route, with "live" times highlighted.
+-   **Show Remarks** for specific ETAs (e.g., delays) or general remarks for routes without live ETAs.
+-   **Auto-refresh** ETA data every 30 seconds, dynamically updating only changed values.
+-   **Support multiple languages**: English, Traditional Chinese (繁體), and Simplified Chinese (简体).
+-   **Offer light and dark themes**, with preference persisted in `localStorage`.
+-   **Adapt seamlessly** between desktop (table view) and mobile (card view) layouts.
 
-In addition to the main search UI (`index.html`), a secondary page (`singyin.html`) showcases a “preset” view for two fixed groups of stops at Sing Yin (Pak Hung House).
-
----
-
-## Features
-
-- **Single‐Page Application**: no full reloads—data is fetched via `fetch()`.  
-- **Responsive Design**:  
-  - Desktop: data in a styled `<table>`.  
-  - Mobile: 80px‐tall “cards” laid out in a 3-column grid (route, destination, times).  
-- **Light/Dark Themes**: CSS variables supply two palettes, toggled via a custom switch.  
-- **Internationalization**: all labels, placeholders, buttons, and table headers switch between EN/TC/SC.  
-- **Route Sorting**: alphanumeric routes (“14”, “14X”, “A1”, etc.) sorted logically.  
-- **Auto-Refresh**: only ETA cells and remarks update, with a brief highlight animation when values change.  
-- **Caching**:  
-  - Full stop list cached on first load to reduce API calls.  
-  - Last search parameters (stop name, route filter, language) saved in `localStorage` and re-run automatically on page load.  
+The `index.html` file serves as the main interactive search interface. A secondary `singyin.html` demonstrates a specialized page for predefined bus stops, reusing the core logic and styling from the main application.
 
 ---
 
-## Getting Started
+## 2. Features
+
+-   **Single-Page Application (SPA)**: All data fetching and UI updates happen dynamically via JavaScript, without full page reloads.
+-   **Responsive Design**:
+    -   On desktop, ETAs are displayed in a traditional table format for easy scanning.
+    -   On mobile devices, a compact, card-based layout ensures readability and touch-friendliness.
+-   **Light/Dark Theming**: A toggle allows users to switch between aesthetic light and dark modes, and their choice is remembered across sessions using `localStorage`.
+-   **Internationalization**: All user-facing text, including labels, placeholders, button text, and table headers, can be switched between English, Traditional Chinese, and Simplified Chinese.
+-   **Intelligent Route Sorting**: Bus routes are sorted logically (e.g., `14` before `14X`, `A1` before `A2`) rather than simple alphabetical order.
+-   **Live Data Updates**: ETAs are automatically refreshed every 30 seconds. Only the specific time cells and remarks that have changed are updated, with a subtle animation highlighting the change.
+-   **Smart ETA Filtering**: To avoid duplicate entries for routes with different "service types" (e.g., regular vs. special trips), the application prioritizes service types `1`, `2`, then `3` for displaying ETAs. It picks the first service type that has *live* ETAs; if none of these have live data, it falls back to showing any available live ETAs. This ensures a single, most relevant set of ETAs per route.
+-   **Contextual Remarks**:
+    -   For rows with live ETAs, remarks are shown as "ETA#: [remark text]".
+    -   For rows without live ETAs, the first available relevant remark (without an "ETA#:" prefix) is shown, spanning multiple columns. If no such remark exists, a "No ETAs available" message is displayed.
+-   **Client-Side Caching & Persistence**:
+    -   The full list of KMB stops is fetched and cached locally on the first request to minimize subsequent API calls.
+    -   The user's last search parameters (stop name, route numbers, selected language) are saved in `localStorage` and automatically loaded and re-searched when the page is revisited.
+
+---
+
+## 3. Getting Started
 
 ### Prerequisites
 
-You only need a modern browser and a simple static file server (to avoid CORS issues when fetching JSON).
+You need a modern web browser and a simple static file server to run the application locally (to avoid CORS issues with the KMB API).
 
 ### Installation
 
-```bash
-# Clone this repository
-git clone https://github.com/<YOUR_USERNAME>/timoeta.git
-cd timoeta
-```
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/<YOUR_USERNAME>/timoeta.git
+    cd timoeta
+    ```
 
 ### Running Locally
 
-#### Option A: Python 3
+Choose one of the following methods to start a local web server:
+
+#### Option A: Using Python 3
 
 ```bash
 python3 -m http.server 8000
-# Then open http://localhost:8000/index.html
 ```
+Then, open your web browser and navigate to `http://localhost:8000/index.html`.
 
-#### Option B: Node.js `serve` (or any static server)
+#### Option B: Using Node.js `serve` (or any other static server)
+
+If you have Node.js installed, you can use the `serve` package:
 
 ```bash
-npm install -g serve
-serve .
-# Visit the printed URL, e.g. http://localhost:5000/index.html
+npm install -g serve # Install serve globally if you haven't already
+serve .             # Start the server in the current directory
 ```
+The console will display the URL, e.g., `http://localhost:5000/index.html`.
 
 ---
 
-## Usage
+## 4. Usage
 
-### Main Page (`index.html`)
+### Main Search Page (`index.html`)
 
-1. Open `index.html` in your browser (via the static server).  
-2. Choose your language from the dropdown in the top-right.  
-3. Toggle Dark Mode on/off.  
-4. Enter a partial stop name (e.g. “Kai Yip Estate”).  
-5. Optionally enter comma-separated route numbers (e.g. `14, 62P, 62X, 259D, X42C`).  
-6. Click **Search ETAs**.  
-7. View results in a table (desktop) or cards (mobile).  
-8. The page auto-refreshes every 30 seconds, updating only changed cells.  
-9. Your last search and theme preference are saved—reload the page and they’ll be restored & auto-searched.
+This is the primary interface for dynamic bus ETA lookups.
+
+1.  Open `index.html` in your browser.
+2.  **Language Selection**: Use the "Language" dropdown in the top-right to choose English, Traditional Chinese (繁體), or Simplified Chinese (简体).
+3.  **Theme Toggle**: Click the "Dark Mode" switch to toggle between light and dark themes. Your choice will be remembered.
+4.  **Enter Stop Name**: Type a partial name of a bus stop (e.g., "Kai Yip Estate") into the "Stop Name" field.
+5.  **Enter Route Numbers (Optional)**: If you want to filter results to specific routes, enter them separated by commas (e.g., `14, 62P, 62X, 259D, X42C`).
+6.  **Search**: Click the "Search ETAs" button.
+7.  The results will be displayed below the form, either as a table (desktop) or a series of cards (mobile). The page will automatically refresh the ETA data every 30 seconds. Your search parameters and chosen language will be remembered if you close and reopen the tab.
 
 ### Predefined Stops Page (`singyin.html`)
 
-A lightweight variant that requires **no** user input. It renders two static groups:
+This page is designed for displaying ETAs for a fixed set of bus stops without requiring user input for searching. It's a demonstration of how the core logic can be reused for specific scenarios.
 
-- **Pak Hung House – East Bound**  
-- **Pak Hung House – West Bound**  
-
-Each group displays all matching routes and ETAs for the hard-coded stop IDs.  
-Language & theme toggles remain functional.
+1.  Open `singyin.html` in your browser.
+2.  You will immediately see ETA information for "Pak Hung House – East Bound" and "Pak Hung House – West Bound" stops.
+3.  **Language and Theme**: The language and theme toggles in the header function identically to the main `index.html` page.
+4.  The ETAs will automatically refresh every 30 seconds.
 
 ---
 
-## Project Structure
+## 5. Project Structure
 
 ```
 timoeta/
-├── index.html           # Main search SPA
-├── singyin.html         # Preset-stop view (minor page)
-├── README.md            # This documentation
+├── index.html           # Main search page
+├── singyin.html         # Page with predefined stops
+├── README.md            # This documentation file
 ├── styles/
-│   └── style.css        # Global styles, theme variables, responsive layout
+│   └── style.css        # All global CSS styles and theme definitions
 └── src/
-    └── app.js           # Core JS: fetch, render, i18n, theming, auto-refresh
+    └── app.js           # Core JavaScript logic for data fetching, UI rendering, updates, and interactions
 ```
 
 ---
 
-## Customization
+## 6. Component Breakdown
 
-- **Add a new “preset” page**:  
-  1. Copy `singyin.html` → `yourpage.html`.  
-  2. Update the `PRESETS` array at top of that file with your own groups.  
+This section details the functionality of each main file.
 
-- **Modify language strings**: edit the `LANGS` object in `src/app.js`.  
+### `index.html`
 
-- **Routes & colors**: adjust `.route-tag.route-XXX` rules in `styles/style.css`.  
+This file provides the foundational HTML structure for the main application:
 
-- **Auto-refresh interval**: change `setInterval(refresh…, 30000)` in `app.js` / `singyin.html`.  
+-   **Document Setup**: Standard `<!DOCTYPE html>`, `charset`, `viewport` for responsiveness, and a `<title>`.
+-   **Theme Initialization Script**: An inline `<script>` in the `<head>` checks `localStorage` immediately. If a dark theme was previously selected, it applies the `dark-mode` class to the `<html>` element *before* CSS loads, preventing a "flash of unstyled content" (FOUC).
+-   **CSS Link**: Links to `styles/style.css` for all visual styling.
+-   **Main Container (`.container`)**: Wraps all primary content, giving it a distinct card-like appearance with shadows and rounded corners.
+-   **Header (`<header>`)**: Contains the application title (`<h1>`) and the shared controls for `themeToggle` and `langSelect`, arranged using flexbox.
+-   **Search Form (`#searchForm`)**: Houses the user input fields:
+    -   `#stopName`: Text input for partial bus stop names.
+    -   `#routeNumbers`: Optional text input for comma-separated route numbers.
+    -   Search button (`type="submit"`) with `btn-primary` and `ripple` classes for styling and a click animation.
+-   **Results Area (`#results`)**: An empty `div` that JavaScript dynamically populates with bus ETA tables (desktop) or cards (mobile).
+-   **Footer (`.app-footer`)**: Displays "Made by Timothy".
+-   **JavaScript Link**: Loads `src/app.js` at the end of the `<body>` for optimal page loading performance.
+
+### `singyin.html`
+
+This file is a specialized version of the application, designed to display ETAs for a predefined set of bus stops without user search input.
+
+-   **HTML Structure**: Largely similar to `index.html` in its layout for the header, result area, and footer.
+    -   **Key Difference**: It **omits the entire search form** (`#searchForm`) present in `index.html`.
+-   **Integrated JavaScript**: Instead of just linking `src/app.js` and running it directly, `singyin.html` embeds its own `<script>` block *after* linking `src/app.js`.
+    -   It defines a `PRESETS` array containing the hard-coded stop `id`s and `platform` codes for "Pak Hung House – East Bound" and "Pak Hung House – West Bound".
+    -   It then defines `renderSingYin()` and `refreshSingYin()` functions that *reuse many helper functions* (like `getETAs`, `formatTimeOnly`, `parseRouteStr`, `compareRoute`, `routeTagClass`, `updateUIText`, `isMobile`) directly from `src/app.js`.
+    -   These `renderSingYin()` and `refreshSingYin()` functions implement the logic to iterate through the `PRESETS`, fetch data for each stop, process it, and render it into tables or cards, mirroring the structure of `initialBuild()` and `refreshEtas()` from `app.js` but without the user input dependency.
+    -   It also contains its own event listeners for theme and language changes, triggering `renderSingYin()` instead of `initialBuild()`.
+    -   Includes a refined `resize` listener to prevent constant re-renders on mobile scroll.
+
+### `src/app.js`
+
+This is the core JavaScript powerhouse for the entire application (`index.html` and `singyin.html`). It handles data fetching, processing, UI rendering, and user interactions.
+
+-   **Constants (`API`, `LANGS`, `SUFFIX`)**: Defines API endpoints, a comprehensive dictionary for internationalization strings (labels, placeholders, headers, messages), and language-to-API-field mappings.
+-   **Global State Variables**:
+    -   `stopListCache`: Stores the fetched list of all KMB stops to prevent redundant API calls.
+    -   `rowsData`: An array that holds references to the DOM elements (`etaCells`, `remCell`, `mobileContainer`) for each displayed row/card, enabling efficient live updates.
+    -   `refreshTimer`: Stores the ID for the `setInterval` used for auto-refresh.
+    -   `hasBuilt`: A flag to control when auto-refresh and resize-rebuilds should start (i.e., only after the initial user search on `index.html` or direct load on `singyin.html`).
+-   **Data Fetching Functions**:
+    -   `getStops()`: Fetches the complete KMB stop list, caching it on the first call.
+    -   `getETAs(id)`: Fetches real-time ETA data for a given bus stop ID.
+-   **Utility Functions (reused by both HTML files)**:
+    -   `parseStopInfo(name)`: A robust function that extracts the cleaned stop name (title), platform number (`A1`), and KMB stop code (`WT123`) from the API's stop name strings, handling various parenthetical formats and **falling back to the English name if the stop code isn't found in the current language's name**.
+    -   `formatTimeOnly(iso)`: Converts ISO timestamps into "HH:MM:SS" format.
+    -   `parseRouteStr(rt)` and `compareRoute(a,b)`: Used for logical sorting of route numbers (e.g., `14`, `14X`, `A1`).
+    -   `routeTagClass(r)`: Assigns specific CSS classes for route badge coloring based on route type (e.g., Airport routes, Night routes).
+    -   `updateUIText()`: Dynamically updates all UI text elements based on the selected language.
+    -   `isMobile()`: Determines if the current viewport is considered "mobile" (<= 576px wide).
+-   **Core UI Rendering Logic (`initialBuild()` for `index.html`)**:
+    -   Clears previous data and timers.
+    -   Gathers user input (stop name, route filter).
+    -   Filters the cached stop list based on the input.
+    -   Groups matching stops by their cleaned title.
+    -   For each stop: fetches ETAs, applies route filters (if any), and *crucially*, filters to display ETAs from **only one service type** (prioritizing 1, then 2, then 3 if live ETAs are available, otherwise showing any live ETAs).
+    -   Prepares remarks: `numberedRemarks` for live ETAs (`ETA1: ...`) and `noetaRemarks` (unnumbered) for rows without live ETAs.
+    -   Conditionally renders either a responsive table (desktop) or a series of compact cards (mobile), populating `rowsData` with DOM references for live updates.
+    -   Starts the `refreshTimer`.
+-   **Real-time Update Logic (`refreshEtas()`)**:
+    -   Called by `refreshTimer` to update displayed ETAs without full re-renders.
+    -   Iterates through `rowsData`.
+    -   Re-fetches ETAs for each specific `(stopId, route, destination)` combination.
+    -   Applies the same **single service type filtering** as `initialBuild()`.
+    -   Updates `textContent` of ETA cells and remark cells.
+    -   Applies a brief `eta-updated` class for visual feedback on changed data.
+    -   Handles remarks: shows numbered remarks for live ETAs, or the first unnumbered remark if no live ETAs are present.
+-   **Event Listeners**:
+    -   **Ripple Effect**: A global click listener adds a visual "ripple" animation to elements with the `.ripple` class.
+    -   **Theme Toggle**: Listens for changes on `#themeToggle`, updates the `dark-mode` class on `<html>`, and saves the preference to `localStorage`.
+    -   **Search Form (`#searchForm`)**: On submit, prevents default, calls `updateUIText()`, saves search params to `localStorage`, sets `hasBuilt = true`, and calls `initialBuild()`.
+    -   **Language Selector (`#langSelect`)**: On change, calls `updateUIText()` and, if `hasBuilt` is true, calls `initialBuild()` to rebuild the UI with new language.
+    -   **Window Resize**: A debounced listener (`_prevIsMobile` flag) only calls `initialBuild()` if the viewport crosses the mobile/desktop breakpoint (`576px`), preventing unnecessary re-renders during mobile scrolling.
+-   **Initialization**: On script load, `updateUIText()` is called. If `localStorage` contains a `lastSearch`, it populates the form fields, sets `hasBuilt = true`, and automatically calls `initialBuild()` to load the previous search results.
+
+### `styles/style.css`
+
+This file governs the entire visual presentation of the application, featuring a robust theming system and responsive design.
+
+-   **Google Sans Imports**: Imports various weights and styles of the Google Sans font families directly from Google Fonts, ensuring a consistent and modern typographic aesthetic.
+-   **Theme Variables (`:root`, `html.dark-mode`)**:
+    -   Defines a comprehensive set of CSS Custom Properties for colors (backgrounds, surfaces, text, accents, outlines), shadows, border-radii, and animation properties.
+    -   Default values are set for the light theme in `:root`.
+    -   The `html.dark-mode` selector overrides these variables with dark-theme specific values when the `dark-mode` class is present on the `<html>` element, enabling seamless theme switching.
+-   **Global Styles**: Resets default browser margins/paddings, sets base `font-family`, `background`, `color`, and `line-height` for the `<body>`. Includes transitions for smooth theme changes.
+-   **Container Styling (`.container`)**: Styles the main application wrapper as a Material Design-inspired card with padding, rounded corners, and subtle shadows.
+-   **Animations (`@keyframes`, classes)**: Defines `fadeIn` for element appearance, `ripple` for button click effects, and `fadeInScaleUp` for table/card entry.
+-   **Header/Controls Styling**: Uses flexbox for alignment. Styles custom theme switches and language dropdowns to integrate with the Material Design aesthetic.
+-   **Search Controls Styling**: Uses flexbox for responsive arrangement of input fields and buttons. Styles text inputs with clear borders and focus effects, and buttons with primary colors and dynamic hover/active states.
+-   **Desktop Table (`.eta-table-container`, `table.eta-results`)**:
+    -   The `eta-table-container` provides a floating card-like wrapper for the table.
+    -   Table styles include collapsed borders, consistent padding, sticky table headers, and hover effects for rows.
+    -   Special classes (`scheduled-eta`, `eta-first`, `no-eta-row`) provide visual cues for scheduled times, first ETAs, and rows with no live data.
+    -   The `remark-only-cell` class handles the merged cell display for rows without live ETAs.
+-   **Route Tag Styling (`.route-tag`)**: Small, distinct badges with specific background and text color combinations based on route type (e.g., Airport, Night, Cross-Harbour). These colors are **theme-neutral** (they remain consistent in both light and dark modes).
+-   **Mobile Card Styling (`.mobile-card`)**:
+    -   Utilizes `@media (max-width: 576px)` to switch layouts.
+    -   Hides the desktop table and displays `mobile-card` elements using CSS Grid for a compact 3-column layout (route tag, destination, times).
+    -   Fixed `height` and specific font sizes ensure elements fit within cards.
+    -   Destination text is set to `white-space: normal; word-break: break-word;` to allow wrapping of long names, preventing horizontal overflow.
+    -   `mobile-noeta` class styles for remarks in no-ETA cards.
+-   **Footer Styling (`.app-footer`)**: Simple centered text styling for the "Made by Timothy" attribution.
 
 ---
 
-## Contributing
+## 7. Customization
 
-1. Fork the repo.  
-2. Create a feature branch: `git checkout -b feature/YourFeature`.  
-3. Commit your changes: `git commit -am "Add YourFeature"`.  
-4. Push to the branch: `git push origin feature/YourFeature`.  
-5. Open a Pull Request—describe your changes clearly.  
-
-Please adhere to the existing code style (Prettier-formatted JS, CSS variables, ES6 syntax).
-
----
-
-## License
-
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+-   **Add/Modify Predefined Stops**: Edit the `PRESETS` array within `singyin.html`'s `<script>` block.
+-   **Adjust Language Strings**: Modify the `LANGS` object in `src/app.js` to change any localized text.
+-   **Route Tag Colors**: Update the `.route-tag.route-XXX` CSS rules in `styles/style.css` to alter route badge colors.
+-   **Auto-Refresh Interval**: Change the `30000` (milliseconds) value in the `setInterval` calls within `src/app.js` and `singyin.html`.
+-   **Theming**: Customize the CSS custom properties in `styles/style.css` under `:root` and `html.dark-mode` for a different color scheme.
+-   **Mobile Breakpoint**: Change the `576px` value in `isMobile()` function in `src/app.js` and in the `@media (max-width: 576px)` query in `styles/style.css`.
 
 ---
 
-## Acknowledgments
+## 8. Contributing
 
-- KMB ETA API by etabus.gov.hk  
-- Google Fonts: Roboto & Google Sans families  
-- Inspired by Material Design principles for theming and layout.
+Contributions are welcome! Please follow these steps:
+
+1.  Fork the repository.
+2.  Create a new branch for your feature or bug fix: `git checkout -b feature/your-feature-name`.
+3.  Commit your changes: `git commit -m "feat: Add your feature"` or `fix: Fix bug"`.
+4.  Push to your branch: `git push origin feature/your-feature-name`.
+5.  Open a Pull Request, describing your changes clearly.
+
+Please adhere to the existing code style (e.g., using Prettier for formatting).
+
+---
+
+## 9. License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+---
+
+## 10. Acknowledgments
+
+-   KMB ETA API provided by etabus.gov.hk
+-   Google Fonts for the "Google Sans" and "Roboto" typefaces.
+-   Inspired by Material Design principles for a clean and intuitive user interface.
