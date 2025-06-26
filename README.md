@@ -1,30 +1,22 @@
 # TimoETA
 
-A lightweight, responsive single‐page application (SPA) for fetching and displaying real‐time Estimated Time of Arrival (ETA) data for Kowloon Motor Bus (KMB) stops in Hong Kong. Built with plain HTML, CSS (CSS Custom Properties, flexbox, and CSS Grid), and vanilla JavaScript—no frontend framework required.
+A lightweight, responsive single‐page application (SPA) for fetching and displaying real‐time Estimated Time of Arrival (ETA) data for Kowloon Motor Bus (KMB) stops in Hong Kong.  
+Built with plain HTML, CSS (CSS Custom Properties, flexbox, and CSS Grid), and vanilla JavaScript—no frontend framework required.
 
 ---
 
 ## Table of Contents
 
-1.  [Project Overview](#project-overview)
-2.  [Features](#features)
-3.  [Getting Started](#getting-started)
-    *   [Prerequisites](#prerequisites)
-    *   [Installation](#installation)
-    *   [Running Locally](#running-locally)
-4.  [Usage](#usage)
-    *   [Main Search Page (`index.html`)](#main-search-page-indexhtml)
-    *   [Predefined Stops Page (`singyin.html`)](#predefined-stops-page-singyinhtml)
-5.  [Project Structure](#project-structure)
-6.  [Component Breakdown](#component-breakdown)
-    *   [`index.html`](#indexhtml)
-    *   [`singyin.html`](#singyinhtml)
-    *   [`src/app.js`](#srcappjs)
-    *   [`styles/style.css`](#stylesstylecss)
-7.  [Customization](#customization)
-8.  [Contributing](#contributing)
-9.  [License](#license)
-10. [Acknowledgments](#acknowledgments)
+1. [Project Overview](#project-overview)  
+2. [Features](#features)  
+3. [Getting Started](#getting-started)  
+4. [Usage](#usage)  
+5. [Project Structure](#project-structure)  
+6. [Component Breakdown](#component-breakdown)  
+7. [Customization](#customization)  
+8. [Contributing](#contributing)  
+9. [License](#license)  
+10. [Acknowledgments](#acknowledgments)  
 
 ---
 
@@ -32,36 +24,34 @@ A lightweight, responsive single‐page application (SPA) for fetching and displ
 
 TimoETA provides a user-friendly interface to:
 
--   **Search** KMB bus stops by partial name.
--   **Filter** results by optional, comma-separated route numbers.
--   **Display** up to three forthcoming ETAs per matching route, with "live" times highlighted.
--   **Show Remarks** for specific ETAs (e.g., delays) or general remarks for routes without live ETAs.
--   **Auto-refresh** ETA data every 30 seconds, dynamically updating only changed values.
--   **Support multiple languages**: English, Traditional Chinese (繁體), and Simplified Chinese (简体).
--   **Offer light and dark themes**, with preference persisted in `localStorage`.
--   **Adapt seamlessly** between desktop (table view) and mobile (card view) layouts.
-
-The `index.html` file serves as the main interactive search interface. A secondary `singyin.html` demonstrates a specialized page for predefined bus stops, reusing the core logic and styling from the main application.
+- **Search** KMB bus stops by partial name.  
+- **Filter** results by optional, comma-separated route numbers.  
+- **Display** up to three forthcoming ETAs per matching route, with “live” times highlighted.  
+- **Show Remarks** for specific ETAs or general remarks when no live ETAs are available.  
+- **Auto-refresh** ETA data every 30 seconds, dynamically updating only changed values.  
+- **Support multiple languages**: English, Traditional Chinese (繁體), and Simplified Chinese (简体).  
+- **Offer light and dark themes**, with preference persisted in `localStorage`.  
+- **Adapt seamlessly** between desktop (table view) and mobile (card view) layouts.  
 
 ---
 
 ## 2. Features
 
--   **Single-Page Application (SPA)**: All data fetching and UI updates happen dynamically via JavaScript, without full page reloads.
--   **Responsive Design**:
-    -   On desktop, ETAs are displayed in a traditional table format for easy scanning.
-    -   On mobile devices, a compact, card-based layout ensures readability and touch-friendliness.
--   **Light/Dark Theming**: A toggle allows users to switch between aesthetic light and dark modes, and their choice is remembered across sessions using `localStorage`.
--   **Internationalization**: All user-facing text, including labels, placeholders, button text, and table headers, can be switched between English, Traditional Chinese, and Simplified Chinese.
--   **Intelligent Route Sorting**: Bus routes are sorted logically (e.g., `14` before `14X`, `A1` before `A2`) rather than simple alphabetical order.
--   **Live Data Updates**: ETAs are automatically refreshed every 30 seconds. Only the specific time cells and remarks that have changed are updated, with a subtle animation highlighting the change.
--   **Smart ETA Filtering**: To avoid duplicate entries for routes with different "service types" (e.g., regular vs. special trips), the application prioritizes service types `1`, `2`, then `3` for displaying ETAs. It picks the first service type that has *live* ETAs; if none of these have live data, it falls back to showing any available live ETAs. This ensures a single, most relevant set of ETAs per route.
--   **Contextual Remarks**:
-    -   For rows with live ETAs, remarks are shown as "ETA#: [remark text]".
-    -   For rows without live ETAs, the first available relevant remark (without an "ETA#:" prefix) is shown, spanning multiple columns. If no such remark exists, a "No ETAs available" message is displayed.
--   **Client-Side Caching & Persistence**:
-    -   The full list of KMB stops is fetched and cached locally on the first request to minimize subsequent API calls.
-    -   The user's last search parameters (stop name, route numbers, selected language) are saved in `localStorage` and automatically loaded and re-searched when the page is revisited.
+- Single-Page Application (SPA) – dynamic updates with no full-page reloads.  
+- Responsive Design – table view on desktop; card view on mobile.  
+- Light/Dark Theming – toggle with persisted preference.  
+- Internationalization – English, 繁體, 简体.  
+- Intelligent Route Sorting – “14” before “14X”, “A1” before “A2”, etc.  
+- Live Data Updates – 30s auto-refresh with change animation.  
+- Smart ETA Filtering – prioritizes service types 1→2→3 for most relevant ETAs.  
+- Contextual Remarks – “ETA#: …” for live ETAs, general remarks when none are live.  
+- Client-Side Caching – full stop list cached on first load.  
+- Search Persistence – last search saved/restored from `localStorage`.  
+- **Mobile Card Drill-Down** – *double-click any mobile card to view hidden details (stop code, platform number, and full remarks).*  
+
+### Bug Fixes
+
+- **Desktop auto-refresh** now preserves empty remarks when live ETAs exist (no longer falls back to “No ETAs available”).  
 
 ---
 

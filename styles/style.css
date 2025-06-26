@@ -456,3 +456,20 @@ table.eta-results tr.eta-data-row:hover td {
   font-size:   0.9em;
   color:       var(--on-variant);
 }
+/* Loading placeholder */
+.loading {
+  text-align: center;
+  font-style: italic;
+  padding: 20px;
+}
+
+/* Mobile‐card details toggle */
+.mobile-details {
+  grid-column: 1 / -1;           /* span all three columns */
+  margin-top:    8px;
+  padding-top:   8px;
+  border-top:    1px solid var(--outline);
+  font-size:     0.75em;
+  color:         var(--on-variant);
+  line-height:   1.4;
+}
