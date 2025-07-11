@@ -322,7 +322,7 @@ async function initialBuild() {
       return compareRoute(a, b);
     });
 
-    // render group
+    // render group heading
     const h3 = document.createElement('h3');
     h3.textContent = title;
     results.appendChild(h3);
@@ -333,7 +333,7 @@ async function initialBuild() {
         const card = document.createElement('div');
         card.className = 'mobile-card fade-in';
 
-        // Route tag
+        // route tag
         const c1 = document.createElement('div'),
               tag = document.createElement('span');
         c1.className = 'mobile-route';
@@ -341,16 +341,16 @@ async function initialBuild() {
         tag.textContent = r.route;
         c1.appendChild(tag);
 
-        // Destination
+        // destination
         const c2 = document.createElement('div');
         c2.className =
           'mobile-dest' +
           (r.etas.every(e => !e.eta)
-             ? ' mobile-noeta-text'
-             : '');
+            ? ' mobile-noeta-text'
+            : '');
         c2.textContent = r.dest;
 
-        // ETAs or no-eta
+        // times container
         const c3 = document.createElement('div');
         c3.className = 'mobile-times';
         if (r.etas.some(e => e.eta)) {
@@ -364,21 +364,22 @@ async function initialBuild() {
               d.textContent = formatTimeOnly(e.eta);
               c3.appendChild(d);
             });
-        } else {
-          const d = document.createElement('div');
-          d.className = 'mobile-noeta';
-          d.textContent = r.noetaRemarks[0] || L.noEtas;
-          c3.appendChild(d);
         }
+        // no collapsed remark when no ETAs
 
         card.append(c1, c2, c3);
 
-        // --- DETAILS TOGGLE BUTTON ---
+        // toggle button (info or warning)
         const toggleBtn = document.createElement('button');
         toggleBtn.className = 'mobile-toggle-btn';
+        if (!r.etas.some(e => e.eta)) {
+          toggleBtn.classList.add('warning');
+        }
         toggleBtn.setAttribute('aria-label', 'Toggle details');
         toggleBtn.setAttribute('aria-expanded', 'false');
-        toggleBtn.innerHTML = '&#9432;'; // Ⓘ info symbol
+        toggleBtn.innerHTML = r.etas.some(e => e.eta)
+          ? '&#9432;'
+          : '&#9888;';
 
         toggleBtn.addEventListener('click', e => {
           e.stopPropagation();
