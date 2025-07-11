@@ -58,7 +58,6 @@ html.dark-mode {
   --outline:         var(--outline-dark);
   --table-hover:     var(--hover-dark);
   --shadow:          var(--shadow-dark);
-  --shadow-strong:   rgba(0,0,0,0.3);
   --focus-ring:      rgba(26,115,232,0.25);
 }
 
@@ -109,6 +108,42 @@ body {
 }
 .fade-in {
   animation: fadeIn 0.5s var(--anim-ease);
+}
+
+/* 5b) Fade + Scale Up */
+@keyframes fadeInScaleUp {
+  from {
+    opacity:   0;
+    transform: translateY(8px) scale(0.95);
+  }
+  to {
+    opacity:   1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 5c) Slide in from Left */
+@keyframes fadeInSlideInLeft {
+  from {
+    opacity:   0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* 5d) Slide Down In */
+@keyframes slideDownIn {
+  from {
+    opacity:   0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity:   1;
+    transform: translateY(0);
+  }
 }
 
 /* 6) Header */
@@ -297,15 +332,20 @@ h1 {
   overflow-x:    auto;
   opacity:       0;
   transform:     scale(0.95);
+  transform-origin: top center;
   animation:     fadeInScaleUp 0.4s var(--anim-ease) forwards;
   transition:
     background var(--anim-dur),
     box-shadow var(--anim-dur);
 }
 @keyframes fadeInScaleUp {
+  from {
+    opacity:   0;
+    transform: translateY(8px) scale(0.95);
+  }
   to {
     opacity:   1;
-    transform: scale(1);
+    transform: translateY(0) scale(1);
   }
 }
 .eta-table-container h3 {
@@ -356,6 +396,12 @@ table.eta-results tr.eta-data-row:hover td {
   color:      var(--on-variant);
 }
 
+/* Animate group headings */
+#results h3 {
+  opacity: 0;
+  animation: fadeInSlideInLeft 0.5s var(--anim-ease) forwards;
+}
+
 /* 12) Route-tag base & colours */
 .route-tag {
   display:        inline-block;
@@ -375,7 +421,6 @@ table.eta-results tr.eta-data-row:hover td {
 .route-tag.route-ES      { background:#e8710a; color:#fff; }
 .route-tag.route-HK      { background:#800020; color:#fff; }
 .route-tag.route-N       { background:#000;    color:#fff; }
-/* red routes: 1XX, 3XX, 6XX */
 .route-tag.route-1XX,
 .route-tag.route-3XX,
 .route-tag.route-6XX    { background:#d71920; color:#fff; }
@@ -384,26 +429,31 @@ table.eta-results tr.eta-data-row:hover td {
 .route-tag.route-normal  { background:#fff;    color:#000; }
 
 /* 13) Mobile cards */
-.mobile-card {
-  display: none;
-}
 @media (max-width: 576px) {
-  .eta-table-container {
-    display: none;
-  }
+  .eta-table-container { display: none; }
 
   .mobile-card {
     display:               grid;
-    grid-template-columns: 60px 1fr auto;
+    grid-template-columns: 48px 1fr auto;
     gap:                   12px;
     align-items:           center;
-    height:                80px;
-    padding:               12px 16px;
-    margin-bottom:         12px;
+    min-height:            72px;
+    padding:               16px 60px 16px 16px;
+    margin-bottom:         16px;
     background:            var(--surface);
     border-radius:         var(--radius-md);
-    box-shadow:
-      0 2px 8px var(--shadow);
+    box-shadow:            0 3px 10px var(--shadow);
+    position:              relative;
+    transform-origin:      center bottom;
+    will-change:           transform;
+    /* initial hidden state for animation */
+    opacity:               0;
+    transform:             translateY(8px) scale(0.95);
+    animation:             fadeInScaleUp 0.5s var(--anim-ease) forwards;
+  }
+  .mobile-card:hover {
+    transform: translateY(-6px) scale(1.03);
+    box-shadow: 0 6px 14px var(--shadow-strong);
   }
 
   .mobile-route {
@@ -416,9 +466,10 @@ table.eta-results tr.eta-data-row:hover td {
   }
 
   .mobile-dest {
-    font-size:   0.9em;
+    font-size:   0.95em;
     white-space: normal;
     word-break:  break-word;
+    font-weight: 500;
   }
   .mobile-dest.mobile-noeta-text {
     font-style: italic;
@@ -433,20 +484,70 @@ table.eta-results tr.eta-data-row:hover td {
     gap:             4px;
   }
   .mobile-times .eta-time {
-    font-size:    0.8em;
+    font-size:    0.875em;
     line-height:  1.2;
+    color:        var(--primary-color);
+    transition:   color 0.3s var(--anim-ease);
   }
   .mobile-times .eta-first {
-    font-weight: 700;
-    color:       var(--primary-color);
+    font-weight: 600;
   }
   .mobile-times .scheduled-eta {
     font-style: italic;
     color:      var(--on-variant);
-    opacity:    0.8;
+    opacity:    0.7;
   }
+
   .mobile-noeta {
-    display: none;
+    font-size:      0.85em;
+    font-style:     italic;
+    color:          var(--on-variant);
+  }
+
+  .mobile-toggle-btn {
+    position:        absolute;
+    top:             12px;
+    right:           12px;
+    width:           28px;
+    height:          28px;
+    border:          none;
+    background:      rgba(0,0,0,0.08);
+    color:           var(--on-surface);
+    border-radius:   var(--radius-pill);
+    font-size:       1.1em;
+    display:         flex;
+    align-items:     center;
+    justify-content: center;
+    cursor:          pointer;
+    transition:      background var(--anim-dur),
+                     transform var(--anim-dur);
+    z-index:         1;
+  }
+  .mobile-toggle-btn:hover {
+    background: rgba(0,0,0,0.12);
+  }
+
+  .mobile-card.expanded {
+    background: var(--hover-light);
+  }
+  .mobile-card.expanded .mobile-toggle-btn {
+    transform:   rotate(180deg);
+    background:  var(--primary-color);
+    color:       #fff;
+  }
+
+  .mobile-details {
+    grid-column:    1 / -1;
+    margin-top:     12px;
+    padding:        12px;
+    border-radius:  var(--radius-sm);
+    background:     var(--bg);
+    border:         1px solid var(--outline);
+    font-size:      0.8em;
+    color:          var(--on-variant);
+    line-height:    1.4;
+    opacity:        0;
+    animation:      slideDownIn 0.3s var(--anim-ease) forwards;
   }
 }
 
@@ -465,16 +566,6 @@ table.eta-results tr.eta-data-row:hover td {
   padding:    20px;
 }
 
-/* Mobile‐card details toggle */
-.mobile-details {
-  grid-column: 1 / -1;
-  margin-top:   8px;
-  padding-top:  8px;
-  border-top:   1px solid var(--outline);
-  font-size:    0.75em;
-  color:        var(--on-variant);
-  line-height:  1.4;
-}
 /* ——— MICRO-INTERACTIONS ——— */
 
 /* Buttons “spring” on hover */
@@ -485,17 +576,6 @@ table.eta-results tr.eta-data-row:hover td {
 .controls button:hover {
   transform: scale(1.05);
   box-shadow: 0 5px 12px var(--shadow-strong);
-}
-
-/* Mobile cards lift on hover */
-.mobile-card {
-  transition: transform 0.3s var(--anim-ease),
-              box-shadow 0.3s var(--anim-ease);
-  will-change: transform;
-}
-.mobile-card:hover {
-  transform: translateY(-6px) scale(1.02);
-  box-shadow: 0 6px 14px var(--shadow-strong);
 }
 
 /* Desktop tables tilt ever so slightly */
@@ -530,7 +610,6 @@ table.eta-results tr.eta-data-row:hover td {
 }
 
 /* ——— SCROLL-REVEAL (OPTIONAL) ——— */
-/* Add .reveal to any block you want to fade+slide in on scroll */
 .reveal {
   opacity: 0;
   transform: translateY(20px);
