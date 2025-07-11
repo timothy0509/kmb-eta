@@ -1,3 +1,4 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -18,12 +19,13 @@
   <link rel="stylesheet" href="styles/style.css"/>
 </head>
 <body>
+  <div class="progress-bar" aria-hidden="true"></div>
   <div class="container fade-in">
     <header class="fade-in">
       <h1>TimoETA – KMB</h1>
       <div class="header-controls">
         <div class="theme-switch-wrapper">
-          <!-- dark‐mode toggle -->
+          <!-- dark-mode toggle -->
           <label class="theme-switch">
             <input type="checkbox" id="themeToggle"/>
             <span class="slider"></span>
@@ -49,9 +51,12 @@
           <input
             type="text"
             id="stopName"
+            list="stopsList"
             placeholder="e.g. Kai Yip Estate"
             required
+            aria-label="Stop Name"
           />
+          <datalist id="stopsList"></datalist>
         </div>
         <div>
           <label id="labelRouteNumbers" for="routeNumbers">
@@ -61,6 +66,7 @@
             type="text"
             id="routeNumbers"
             placeholder="e.g. 14, 62X, A41, P905"
+            aria-label="Route Numbers"
           />
         </div>
         <button type="submit" class="btn-primary ripple">
