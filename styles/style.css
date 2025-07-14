@@ -3,51 +3,48 @@
 /* 1) Google Sans imports */
 @import url("https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Google+Sans+Text:wght@400;500;700&family=Google+Sans:wght@400;500;700&family=Google+Sans+Display:wght@400;700&display=swap");
 
-/* 2) Theme variables */
+/* 2) Theme & animation variables */
 :root {
-  --primary-color:   #4285f4;
-  --kmb-red:         #d71920;
+  --primary-color:    #4285f4;
+  --kmb-red:          #d71920;
 
-  --font-display:    'Google Sans Display', 'Google Sans Text', sans-serif;
-  --font-sans:       'Google Sans', 'Google Sans Text', sans-serif;
-  --font-text:       'Google Sans Text', sans-serif;
+  --font-display:     'Google Sans Display', 'Google Sans Text', sans-serif;
+  --font-sans:        'Google Sans', 'Google Sans Text', sans-serif;
+  --font-text:        'Google Sans Text', sans-serif;
 
-  /* light theme */
-  --bg-light:        #fdfdfe;
-  --surface-light:   #ffffff;
-  --on-light:        #1f1f1f;
-  --variant-light:   #444746;
-  --outline-light:   #c4c7c5;
-  --hover-light:     rgba(26,115,232,0.08);
-  --shadow-light:    rgba(0,0,0,0.08);
+  --bg-light:         #fdfdfe;
+  --surface-light:    #ffffff;
+  --on-light:         #1f1f1f;
+  --variant-light:    #444746;
+  --outline-light:    #c4c7c5;
+  --hover-light:      rgba(26,115,232,0.08);
+  --shadow-light:     rgba(0,0,0,0.08);
 
-  /* dark theme */
-  --bg-dark:         #1a1b1e;
-  --surface-dark:    #28292c;
-  --on-dark:         #e3e3e3;
-  --variant-dark:    #9aa0a6;
-  --outline-dark:    #4a4a4a;
-  --hover-dark:      rgba(26,115,232,0.15);
-  --shadow-dark:     rgba(0,0,0,0.3);
+  --bg-dark:          #1a1b1e;
+  --surface-dark:     #28292c;
+  --on-dark:          #e3e3e3;
+  --variant-dark:     #9aa0a6;
+  --outline-dark:     #4a4a4a;
+  --hover-dark:       rgba(26,115,232,0.15);
+  --shadow-dark:      rgba(0,0,0,0.3);
 
-  /* sizing & animation */
-  --radius-sm:       6px;
-  --radius-md:      12px;
-  --radius-lg:      18px;
-  --radius-pill:    999px;
-  --anim-dur:       0.25s;
-  --anim-ease:      cubic-bezier(0.4,0,0.2,1);
+  --radius-sm:        6px;
+  --radius-md:       12px;
+  --radius-lg:       18px;
+  --radius-pill:     999px;
 
-  /* current theme values */
-  --bg:              var(--bg-light);
-  --surface:         var(--surface-light);
-  --on-surface:      var(--on-light);
-  --on-variant:      var(--variant-light);
-  --outline:         var(--outline-light);
-  --table-hover:     var(--hover-light);
-  --shadow:          var(--shadow-light);
-  --shadow-strong:   rgba(0,0,0,0.12);
-  --focus-ring:      rgba(26,115,232,0.15);
+  --anim-dur:         0.3s;
+  --anim-ease:        cubic-bezier(0.4, 0, 0.2, 1);
+
+  --bg:               var(--bg-light);
+  --surface:          var(--surface-light);
+  --on-surface:       var(--on-light);
+  --on-variant:       var(--variant-light);
+  --outline:          var(--outline-light);
+  --table-hover:      var(--hover-light);
+  --shadow:           var(--shadow-light);
+  --shadow-strong:    rgba(0,0,0,0.12);
+  --focus-ring:       rgba(26,115,232,0.15);
 }
 
 html.dark-mode {
@@ -69,13 +66,13 @@ html.dark-mode {
 }
 html { scroll-behavior: smooth; }
 body {
-  font-family: var(--font-text);
-  background:  var(--bg);
-  color:       var(--on-surface);
-  line-height: 1.65;
-  padding:     20px;
-  transition:  background var(--anim-dur),
-               color var(--anim-dur);
+  font-family:  var(--font-text);
+  background:   var(--bg);
+  color:        var(--on-surface);
+  line-height:  1.65;
+  padding:      20px;
+  transition:   background var(--anim-dur),
+                color var(--anim-dur);
 }
 
 /* 4) Container */
@@ -98,25 +95,43 @@ body {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-@keyframes fadeInScaleUp {
+
+@keyframes scaleIn {
   from { opacity: 0; transform: translateY(8px) scale(0.95); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
-@keyframes fadeInSlideInLeft {
-  from { opacity: 0; transform: translateX(-20px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-@keyframes slideDownIn {
-  from { opacity: 0; transform: translateY(-10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
+
 @keyframes popIn {
   from { opacity: 0; transform: scale(0.8); }
   to   { opacity: 1; transform: scale(1); }
 }
 
-/* 6) Utilities */
-.fade-in { animation: fadeIn 0.5s var(--anim-ease) forwards; }
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-10px); }
+}
+
+@keyframes ripple {
+  to {
+    transform: translate(-50%, -50%) scale(4);
+    opacity:   0;
+  }
+}
+
+@keyframes pulse {
+  0%,100% { background-color: transparent; }
+  50%     { background-color: rgba(66,133,244,0.2); }
+}
+
+/* 6) Utility classes */
+.fade-in {
+  animation: fadeIn var(--anim-dur) var(--anim-ease) forwards;
+}
 
 /* 7) Header */
 header {
@@ -136,25 +151,34 @@ h1 {
   letter-spacing: -0.5px;
 }
 
-/* 8) Theme & Language */
+/* 8) Theme & language */
 .theme-switch-wrapper {
-  display: flex; align-items: center; gap: 12px;
+  display:       flex;
+  align-items:   center;
+  gap:           12px;
 }
 .theme-switch {
-  position: relative; width: 48px; height: 28px;
+  position: relative;
+  width:    48px;
+  height:   28px;
 }
-.theme-switch input { opacity:0; width:0; height:0 }
+.theme-switch input {
+  opacity: 0; width:0; height:0;
+}
 .slider {
-  position: absolute; inset: 0;
-  background: #bdc1c6; border-radius: 28px;
-  transition: background 0.3s var(--anim-ease);
+  position: absolute; inset:0;
+  background: #bdc1c6;
+  border-radius:28px;
+  transition: background var(--anim-dur);
 }
 .slider::before {
   content:'';
-  position:absolute; width:22px; height:22px;
+  position:absolute;
+  width:22px; height:22px;
   left:3px; bottom:3px;
-  background:#fff; border-radius:50%;
-  transition: transform 0.3s var(--anim-ease);
+  background:#fff;
+  border-radius:50%;
+  transition: transform var(--anim-dur);
   box-shadow:0 1px 3px rgba(0,0,0,0.3);
 }
 .theme-switch input:checked + .slider {
@@ -165,45 +189,49 @@ h1 {
 }
 .theme-label,
 .lang-label {
-  font-size:0.9em; color: var(--on-variant);
+  font-size: 0.9em;
+  color:     var(--on-variant);
 }
 .lang-label { margin:0 6px 0 12px; }
 
-/* 9) Material select */
+/* 9) Material-select */
 .material-select {
-  padding:10px 12px;
-  border:1px solid var(--outline);
+  padding:       10px 12px;
+  border:        1px solid var(--outline);
   border-radius: var(--radius-md);
-  background: var(--surface);
-  color: var(--on-surface);
-  transition: border-color var(--anim-dur);
+  background:    var(--surface);
+  color:         var(--on-surface);
+  transition:    border-color var(--anim-dur);
 }
 .material-select:focus {
   outline:none;
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px var(--focus-ring);
+  box-shadow:   0 0 0 3px var(--focus-ring);
 }
 
-/* 10) Controls */
+/* 10) Search controls */
 .controls {
-  display:flex; flex-wrap:wrap; gap:24px;
-  margin-bottom:25px; align-items:flex-end;
+  display:       flex;
+  flex-wrap:     wrap;
+  gap:           24px;
+  margin-bottom: 25px;
+  align-items:   flex-end;
 }
-.controls>div { flex:1 1 220px }
+.controls > div { flex:1 1 220px; }
 .controls label {
-  display:block;
-  margin-bottom:10px;
-  font-weight:500;
-  color:var(--on-variant);
-  font-size:0.875em;
+  display:       block;
+  margin-bottom: 10px;
+  font-weight:   500;
+  color:         var(--on-variant);
+  font-size:     0.875em;
 }
 .controls input[type="text"] {
-  width:100%;
-  padding:14px 18px;
-  border:1.5px solid var(--outline);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  color: var(--on-surface);
+  width:           100%;
+  padding:         14px 18px;
+  border:          1.5px solid var(--outline);
+  border-radius:   var(--radius-md);
+  background:      var(--surface);
+  color:           var(--on-surface);
   transition:
     border-color var(--anim-dur),
     box-shadow    var(--anim-dur);
@@ -213,16 +241,16 @@ h1 {
   box-shadow:   0 0 0 3.5px var(--focus-ring);
 }
 .controls button {
-  padding:14px 30px;
-  background: var(--primary-color);
-  color:#fff;
-  border:none;
-  border-radius: var(--radius-pill);
-  font-family: var(--font-sans);
-  font-weight:700;
-  text-transform:uppercase;
-  cursor:pointer;
-  box-shadow:0 3px 6px var(--shadow);
+  padding:        14px 30px;
+  background:     var(--primary-color);
+  color:          #fff;
+  border:         none;
+  border-radius:  var(--radius-pill);
+  font-family:    var(--font-sans);
+  font-weight:    700;
+  text-transform: uppercase;
+  cursor:         pointer;
+  box-shadow:     0 3px 6px var(--shadow);
   transition:
     background var(--anim-dur),
     box-shadow var(--anim-dur),
@@ -230,11 +258,11 @@ h1 {
 }
 .controls button:hover {
   background:#1a73e8;
-  transform: translateY(-2px);
+  transform:translateY(-2px);
 }
 .controls button:active {
-  transform: translateY(1px) scale(0.98);
-  box-shadow: 0 1px 3px var(--shadow);
+  transform:translateY(1px) scale(0.98);
+  box-shadow:0 1px 3px var(--shadow);
 }
 
 /* 11) Ripple */
@@ -244,35 +272,30 @@ h1 {
 .ripple::after {
   content:''; position:absolute;
   width:100px; height:100px;
-  background: rgba(255,255,255,0.4);
+  background:rgba(255,255,255,0.4);
   border-radius:50%;
-  transform: translate(-50%,-50%) scale(0);
+  transform:translate(-50%,-50%) scale(0);
   opacity:0;
+  transition: transform var(--anim-dur), opacity var(--anim-dur);
 }
 .ripple.animate::after {
-  animation: ripple 0.6s ease-out;
-}
-@keyframes ripple {
-  to {
-    transform: translate(-50%,-50%) scale(4);
-    opacity: 0;
-  }
+  animation:ripple 0.6s ease-out;
 }
 
 /* 12) Desktop table */
 .eta-table-container {
   margin-bottom:35px;
   background: var(--surface);
-  border-radius: var(--radius-md);
+  border-radius:var(--radius-md);
   box-shadow:
     0 3px 10px var(--shadow),
     0 2px  5px var(--shadow);
   padding:25px;
   overflow-x:auto;
   opacity:0;
-  transform: translateY(8px) scale(0.95);
-  transform-origin: top center;
-  animation: fadeInScaleUp 0.4s var(--anim-ease) forwards;
+  transform:translateY(8px) scale(0.95);
+  transform-origin:top center;
+  animation: scaleIn var(--anim-dur) var(--anim-ease) forwards;
   transition:
     background var(--anim-dur),
     box-shadow var(--anim-dur);
@@ -284,7 +307,7 @@ h1 {
 
 .eta-table-container h3 {
   margin:0 0 20px;
-  font-family: var(--font-sans);
+  font-family:var(--font-sans);
   font-size:1.4em;
   font-weight:500;
   color:var(--on-surface);
@@ -292,10 +315,10 @@ h1 {
   padding-bottom:12px;
 }
 
+/* 13) Table rows */
 table.eta-results {
-  width:100%;
-  border-collapse:collapse;
-  font-family: var(--font-text);
+  width:100%; border-collapse:collapse;
+  font-family:var(--font-text);
   font-size:0.9em;
 }
 table.eta-results th,
@@ -307,7 +330,7 @@ table.eta-results td {
 }
 table.eta-results th {
   text-align:left;
-  font-family: var(--font-sans);
+  font-family:var(--font-sans);
   font-weight:700;
   font-size:0.8em;
   color:var(--on-variant);
@@ -317,25 +340,17 @@ table.eta-results th {
 table.eta-results tr.eta-data-row:hover td {
   background: var(--table-hover);
 }
-
-/* scheduled ETAs italic */
 .scheduled-eta {
   font-style: italic;
   color: var(--on-variant);
-  opacity:0.8;
+  opacity: 0.8;
 }
 
-/* 13) Headings slide in */
-#results h3 {
-  opacity:0;
-  animation: fadeInSlideInLeft 0.5s var(--anim-ease) forwards;
-}
-
-/* 14) Route-tag + popIn */
+/* 14) Route-tag popIn */
 .route-tag {
   display:inline-block;
   padding:6px 8px;
-  border-radius: var(--radius-sm);
+  border-radius:var(--radius-sm);
   font-family:var(--font-sans);
   font-weight:700;
   font-size:0.875em;
@@ -345,7 +360,7 @@ table.eta-results tr.eta-data-row:hover td {
   transition:
     background var(--anim-dur),
     color var(--anim-dur);
-  animation: popIn 0.4s var(--anim-ease) forwards;
+  animation: popIn var(--anim-dur) var(--anim-ease) forwards;
 }
 .route-tag.route-A      { background:#1967d2; color:#fdd663; }
 .route-tag.route-ES     { background:#e8710a; color:#fff; }
@@ -363,6 +378,11 @@ table.eta-results tr.eta-data-row:hover td {
   .eta-table-container { display: none; }
 
   .mobile-card {
+    --shadow-offset-x: 0px;
+    --shadow-offset-y: 0px;
+    box-shadow:
+      var(--shadow-offset-x) var(--shadow-offset-y) 12px rgba(0,0,0,0.2),
+      0 3px 10px var(--shadow);
     display:grid;
     grid-template-columns:48px 1fr auto;
     gap:12px;
@@ -370,19 +390,21 @@ table.eta-results tr.eta-data-row:hover td {
     min-height:72px;
     padding:16px 60px 16px 16px;
     margin-bottom:16px;
-    background: var(--surface);
-    border-radius: var(--radius-md);
-    box-shadow:0 3px 10px var(--shadow);
+    background:var(--surface);
+    border-radius:var(--radius-md);
     position:relative;
     transform-origin:center bottom;
-    will-change:transform;
+    will-change:transform, box-shadow;
     opacity:0;
     transform:translateY(8px) scale(0.95);
-    animation:fadeInScaleUp 0.5s var(--anim-ease) forwards;
+    animation:scaleIn var(--anim-dur) var(--anim-ease) forwards;
   }
   .mobile-card:hover {
     transform:translateY(-6px) scale(1.03);
-    box-shadow:0 6px 14px var(--shadow-strong);
+  }
+  /* shadow follows cursor via JS updating --shadow-offset-x/y */
+  .mobile-card {
+    transition: box-shadow var(--anim-dur) var(--anim-ease);
   }
 
   .mobile-route {
@@ -404,34 +426,27 @@ table.eta-results tr.eta-data-row:hover td {
   }
 
   .mobile-times {
-    display:flex;
-    flex-direction:column;
-    justify-content:center;
-    align-items:flex-end;
+    display:flex; flex-direction:column;
+    justify-content:center; align-items:flex-end;
     gap:4px;
   }
   .mobile-times .eta-time {
     opacity:0;
-    animation:fadeIn 0.4s var(--anim-ease) forwards;
-    font-size:0.75em; /* reduced */
+    animation: fadeIn var(--anim-dur) var(--anim-ease) forwards;
+    font-size:0.75em;
   }
   .mobile-times .eta-time:nth-child(1) { animation-delay:0.1s; }
   .mobile-times .eta-time:nth-child(2) { animation-delay:0.2s; }
   .mobile-times .eta-time:nth-child(3) { animation-delay:0.3s; }
-
-  /* first ETA in mobile bold & blue */
   .mobile-times .eta-time:nth-child(1):not(.scheduled-eta) {
     color: var(--primary-color);
     font-weight: 700;
   }
 
-  .mobile-noeta {
-    display:none;
-  }
+  .mobile-noeta { display:none; }
 
   .mobile-toggle-btn {
-    position:absolute;
-    top:12px; right:12px;
+    position:absolute; top:12px; right:12px;
     width:28px; height:28px;
     border:none;
     background:rgba(0,0,0,0.08);
@@ -440,8 +455,8 @@ table.eta-results tr.eta-data-row:hover td {
     font-size:1.1em;
     display:flex; align-items:center; justify-content:center;
     cursor:pointer;
-    transition:background var(--anim-dur),transform var(--anim-ease);
-    animation:popIn 0.3s var(--anim-ease) forwards;
+    transition: background var(--anim-dur), transform var(--anim-ease);
+    animation: popIn var(--anim-dur) var(--anim-ease) forwards;
     z-index:1;
   }
   .mobile-toggle-btn:hover {
@@ -449,7 +464,7 @@ table.eta-results tr.eta-data-row:hover td {
     background:rgba(0,0,0,0.12);
   }
   .mobile-toggle-btn.warning {
-    background: var(--kmb-red);
+    background:var(--kmb-red);
     color:#fff;
   }
 
@@ -473,7 +488,11 @@ table.eta-results tr.eta-data-row:hover td {
     color:var(--on-variant);
     line-height:1.4;
     opacity:0;
-    animation:slideDownIn 0.3s var(--anim-ease) forwards;
+    animation:slideDown var(--anim-dur) var(--anim-ease) forwards;
+    will-change:opacity, transform;
+  }
+  .mobile-details.closing {
+    animation: slideUp var(--anim-dur) var(--anim-ease) forwards;
   }
 }
 
@@ -492,7 +511,7 @@ table.eta-results tr.eta-data-row:hover td {
   padding:20px;
 }
 
-/* 18) Micro-interactions */
+/* 18) Button ripple */
 .controls button {
   transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1),
               box-shadow 0.3s var(--anim-ease);
@@ -502,11 +521,7 @@ table.eta-results tr.eta-data-row:hover td {
   box-shadow:0 5px 12px var(--shadow-strong);
 }
 
-/* 19) Pulse on update */
-@keyframes pulse {
-  0%,100% { background-color:transparent; }
-  50%     { background-color:rgba(66,133,244,0.2); }
-}
+/* 19) Pulse on ETA update */
 .eta-updated {
   animation:pulse 0.8s ease-out;
 }
@@ -514,20 +529,16 @@ table.eta-results tr.eta-data-row:hover td {
 /* 20) Scroll-progress */
 .progress-bar {
   position:fixed; top:0; left:0;
-  height:4px;
-  background:var(--primary-color);
-  width:0%;
-  z-index:1000;
-  transition:width 0.2s ease-out;
+  height:4px; background:var(--primary-color);
+  width:0%; z-index:1000;
+  transition: width 0.2s ease-out;
 }
 
 /* 21) Scroll-reveal */
 .reveal {
-  opacity:0;
-  transform:translateY(20px);
-  transition:opacity 0.6s ease,transform 0.6s ease;
+  opacity:0; transform:translateY(20px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
 }
 .reveal.in-view {
-  opacity:1;
-  transform:translateY(0);
+  opacity:1; transform:translateY(0);
 }
