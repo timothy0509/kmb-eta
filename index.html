@@ -1,43 +1,46 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8"/>
-  <meta
-    name="viewport"
-    content="width=device-width,initial-scale=1.0,maximum-scale=1.0"
-  />
-  <title>TimoETA – KMB</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0" />
+  <title>TimoETA</title>
   <!-- immediately apply saved theme -->
   <script>
-    (function(){
+    (function () {
       const t = localStorage.getItem('theme');
       if (t === 'dark')
         document.documentElement.classList.add('dark-mode');
     })();
   </script>
-  <link rel="stylesheet" href="styles/style.css"/>
+  <link rel="stylesheet" href="styles/style.css" />
 </head>
+
 <body>
   <div class="progress-bar" aria-hidden="true"></div>
   <div class="container fade-in">
     <header class="fade-in">
-      <h1>TimoETA – KMB</h1>
+      <h1>TimoETA</h1>
       <div class="header-controls">
+        <!-- Mode segmented control -->
+        <div class="segmented-control mode-switch">
+          <button data-value="kmb" class="active">KMB</button>
+          <button data-value="mtr">MTR</button>
+          <button data-value="lr">Light Rail</button>
+        </div>
+        <!-- Language segmented control -->
+        <div class="segmented-control lang-switch">
+          <button data-value="en" class="active">EN</button>
+          <button data-value="tc">繁體</button>
+          <button data-value="sc">简体</button>
+        </div>
+        <!-- Dark-mode toggle -->
         <div class="theme-switch-wrapper">
-          <!-- dark-mode toggle -->
           <label class="theme-switch">
-            <input type="checkbox" id="themeToggle"/>
+            <input type="checkbox" id="themeToggle" />
             <span class="slider"></span>
           </label>
           <span class="theme-label">Dark Mode</span>
-          <!-- language selector -->
-          <label for="langSelect" class="lang-label">Language</label>
-          <select id="langSelect" class="material-select">
-            <option value="en">English</option>
-            <option value="tc">繁體</option>
-            <option value="sc">简体</option>
-          </select>
         </div>
       </div>
     </header>
@@ -48,26 +51,15 @@
           <label id="labelStopName" for="stopName">
             Stop Name (partial)
           </label>
-          <input
-            type="text"
-            id="stopName"
-            list="stopsList"
-            placeholder="e.g. Kai Yip Estate"
-            required
-            aria-label="Stop Name"
-          />
+          <input type="text" id="stopName" list="stopsList" placeholder="e.g. Kai Yip Estate" required
+            aria-label="Stop Name or Station ID" />
           <datalist id="stopsList"></datalist>
         </div>
         <div>
           <label id="labelRouteNumbers" for="routeNumbers">
             Route Numbers (comma-sep, optional)
           </label>
-          <input
-            type="text"
-            id="routeNumbers"
-            placeholder="e.g. 14, 62X, A41, P905"
-            aria-label="Route Numbers"
-          />
+          <input type="text" id="routeNumbers" placeholder="e.g. 14, 62X, A41, P905" aria-label="Route Numbers" />
         </div>
         <button type="submit" class="btn-primary ripple">
           Search ETAs
@@ -82,6 +74,10 @@
     </footer>
   </div>
 
+  <script src="src/kmb.js"></script>
+  <script src="src/mtr.js"></script>
+  <script src="src/lr.js"></script>
   <script src="src/app.js"></script>
 </body>
+
 </html>
