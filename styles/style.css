@@ -18,6 +18,13 @@
   --hover-light: rgba(26, 115, 232, 0.08);
   --shadow-light: rgba(0, 0, 0, 0.08);
 
+  /* Material Design 3 related colors for segmented control (light mode) */
+  --primary-container-light: rgba(66, 133, 244, 0.15);
+  /* Subtle blue tint */
+  --on-primary-container-light: #1a1b1e;
+  /* Dark text on light container */
+
+
   --bg-dark: #1a1b1e;
   --surface-dark: #28292c;
   --on-dark: #e3e3e3;
@@ -25,6 +32,13 @@
   --outline-dark: #4a4a4a;
   --hover-dark: rgba(26, 115, 232, 0.15);
   --shadow-dark: rgba(0, 0, 0, 0.3);
+
+  /* Material Design 3 related colors for segmented control (dark mode) */
+  --primary-container-dark: rgba(66, 133, 244, 0.25);
+  /* Darker subtle blue tint */
+  --on-primary-container-dark: #e3e3e3;
+  /* Light text on dark container */
+
 
   --radius-sm: 6px;
   --radius-md: 12px;
@@ -43,6 +57,10 @@
   --shadow: var(--shadow-light);
   --shadow-strong: rgba(0, 0, 0, 0.12);
   --focus-ring: rgba(26, 115, 232, 0.15);
+
+  /* Default MD3 container colors to light mode versions */
+  --primary-container: var(--primary-container-light);
+  --on-primary-container: var(--on-primary-container-light);
 }
 
 html.dark-mode {
@@ -54,6 +72,10 @@ html.dark-mode {
   --table-hover: var(--hover-dark);
   --shadow: var(--shadow-dark);
   --focus-ring: rgba(26, 115, 232, 0.25);
+
+  /* Apply dark mode MD3 container colors */
+  --primary-container: var(--primary-container-dark);
+  --on-primary-container: var(--on-primary-container-dark);
 }
 
 /* 3) Global reset */
@@ -73,7 +95,8 @@ body {
   color: var(--on-surface);
   line-height: 1.65;
   padding: 20px;
-  transition: background var(--anim-dur), color var(--anim-dur);
+  transition: background var(--anim-dur),
+    color var(--anim-dur);
 }
 
 /* 4) Container */
@@ -83,68 +106,72 @@ body {
   background: var(--surface);
   padding: 30px 35px;
   border-radius: var(--radius-lg);
-  box-shadow: 0 4px 16px var(--shadow), 0 2px 8px var(--shadow);
-  transition: background var(--anim-dur), box-shadow var(--anim-dur);
+  box-shadow:
+    0 4px 16px var(--shadow),
+    0 2px 8px var(--shadow);
+  transition:
+    background var(--anim-dur),
+    box-shadow var(--anim-dur);
 }
 
 /* 5) Keyframes */
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(8px)
+    transform: translateY(8px);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0)
+    transform: translateY(0);
   }
 }
 
 @keyframes scaleIn {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.95)
+    transform: translateY(8px) scale(0.95);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0) scale(1)
+    transform: translateY(0) scale(1);
   }
 }
 
 @keyframes popIn {
   from {
     opacity: 0;
-    transform: scale(0.8)
+    transform: scale(0.8);
   }
 
   to {
     opacity: 1;
-    transform: scale(1)
+    transform: scale(1);
   }
 }
 
 @keyframes slideDown {
   from {
     opacity: 0;
-    transform: translateY(-10px)
+    transform: translateY(-10px);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0)
+    transform: translateY(0);
   }
 }
 
 @keyframes slideUp {
   from {
     opacity: 1;
-    transform: translateY(0)
+    transform: translateY(0);
   }
 
   to {
     opacity: 0;
-    transform: translateY(-10px)
+    transform: translateY(-10px);
   }
 }
 
@@ -159,15 +186,15 @@ body {
 
   0%,
   100% {
-    background: transparent
+    background-color: transparent;
   }
 
   50% {
-    background: rgba(66, 133, 244, 0.2)
+    background-color: rgba(66, 133, 244, 0.2);
   }
 }
 
-/* 6) Utility */
+/* 6) Utility classes */
 .fade-in {
   animation: fadeIn var(--anim-dur) var(--anim-ease) forwards;
 }
@@ -191,7 +218,7 @@ h1 {
   letter-spacing: -0.5px;
 }
 
-/* 7.1) Header controls */
+/* 7.1) Header controls wrapper */
 .header-controls {
   display: flex;
   flex-wrap: wrap;
@@ -200,34 +227,63 @@ h1 {
   justify-content: flex-end;
 }
 
-/* 7.2) Segmented control */
+/* 7.2) Segmented control (mode & language) */
 .segmented-control {
-  display: inline-flex;
   border: 1px solid var(--outline);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-pill);
+  /* Make outer container pill-shaped */
   overflow: hidden;
-  background: var(--surface);
+  /* Ensures inner buttons are clipped to the pill shape */
+  display: inline-flex;
+  background: transparent;
+  /* Container itself is transparent */
 }
 
 .segmented-control button {
   border: none;
-  background: var(--surface);
-  color: var(--on-surface);
-  padding: 8px 12px;
+  background: transparent;
+  /* Buttons start transparent */
+  color: var(--on-variant);
+  /* Unselected text color */
+  padding: 8px 16px;
+  /* More horizontal padding typical for MD3 */
   cursor: pointer;
   font-family: var(--font-sans);
-  font-size: 0.875em;
-  transition: background var(--anim-dur), color var(--anim-ease);
+  font-weight: 500;
+  /* MD3 often uses medium weight for labels */
+  position: relative;
+  /* For z-index to work */
+  z-index: 1;
+  /* Ensure text is above active background if needed */
+  transition: background var(--anim-dur), color var(--anim-dur);
+  /* Smooth transitions */
 }
 
+/* Active button state */
 .segmented-control button.active {
-  background: var(--primary-color);
-  color: #fff;
+  background-color: var(--primary-container);
+  /* Subtle background fill for active state */
+  color: var(--primary-color);
+  /* Primary color for selected text */
+  font-weight: 700;
+  /* Active state often bold in MD3 */
 }
 
+/* Hover state for unselected buttons */
 .segmented-control button:not(.active):hover {
-  background: var(--table-hover);
+  background-color: var(--table-hover);
+  /* Existing subtle hover */
 }
+
+/* Focus visible state */
+.segmented-control button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus-ring);
+  /* Focus ring */
+  z-index: 2;
+  /* Bring focused button slightly forward */
+}
+
 
 /* 8) Theme switch */
 .theme-switch-wrapper {
@@ -326,7 +382,9 @@ h1 {
   border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--on-surface);
-  transition: border-color var(--anim-dur), box-shadow var(--anim-dur);
+  transition:
+    border-color var(--anim-dur),
+    box-shadow var(--anim-dur);
 }
 
 .controls input[type="text"]:focus {
@@ -388,14 +446,18 @@ h1 {
   margin-bottom: 35px;
   background: var(--surface);
   border-radius: var(--radius-md);
-  box-shadow: 0 3px 10px var(--shadow), 0 2px 5px var(--shadow);
+  box-shadow:
+    0 3px 10px var(--shadow),
+    0 2px 5px var(--shadow);
   padding: 25px;
   overflow-x: auto;
   opacity: 0;
   transform: translateY(8px) scale(0.95);
   transform-origin: top center;
   animation: scaleIn var(--anim-dur) var(--anim-ease) forwards;
-  transition: background var(--anim-dur), box-shadow var(--anim-dur);
+  transition:
+    background var(--anim-dur),
+    box-shadow var(--anim-dur);
 }
 
 .eta-table-container:hover {
@@ -403,7 +465,9 @@ h1 {
   box-shadow: 0 6px 12px var(--shadow-strong);
 }
 
-.eta-table-container h3 {
+.eta-table-container h3,
+.eta-table-container h4 {
+  /* Add h4 to this rule */
   margin: 0 0 20px;
   font-family: var(--font-sans);
   font-size: 1.4em;
@@ -411,6 +475,15 @@ h1 {
   color: var(--on-surface);
   border-bottom: 1.5px solid var(--outline);
   padding-bottom: 12px;
+}
+
+/* Specific style for MTR/LR headers for colored background */
+h3 span.line-tag {
+  display: inline-block;
+  padding: 0.2em 0.5em;
+  border-radius: 4px;
+  margin-right: 0.5em;
+  /* Space between colored tag and text */
 }
 
 /* 13) Table rows */
@@ -460,7 +533,9 @@ table.eta-results tr.eta-data-row:hover td {
   line-height: 1.2;
   box-shadow: 0 1px 2px var(--shadow);
   white-space: nowrap;
-  transition: background var(--anim-dur), color var(--anim-dur);
+  transition:
+    background var(--anim-dur),
+    color var(--anim-dur);
   animation: popIn var(--anim-dur) var(--anim-ease) forwards;
 }
 
@@ -507,24 +582,26 @@ table.eta-results tr.eta-data-row:hover td {
 }
 
 /* 15) Mobile cards */
-@media (max-width:576px) {
+@media (max-width: 576px) {
   .eta-table-container {
     display: none;
   }
 
-  /* existing mobile styles */
+  /* Align cards content to the top for multi-line text */
   .mobile-card {
     --shadow-offset-x: 0px;
     --shadow-offset-y: 0px;
     box-shadow:
       var(--shadow-offset-x) var(--shadow-offset-y) 12px rgba(0, 0, 0, 0.2),
       0 3px 10px var(--shadow);
-    display: grid;
-    grid-template-columns: 48px 1fr auto;
-    gap: 12px;
-    align-items: center;
-    min-height: 72px;
-    padding: 16px 60px 16px 16px;
+    display: flex;
+    /* Use flexbox for the card itself */
+    align-items: flex-start;
+    /* Align content to the top */
+    justify-content: space-between;
+    /* Push left and right content apart */
+    padding: 12px;
+    /* Adjust padding */
     margin-bottom: 16px;
     background: var(--surface);
     border-radius: var(--radius-md);
@@ -534,31 +611,32 @@ table.eta-results tr.eta-data-row:hover td {
     opacity: 0;
     transform: translateY(8px) scale(0.95);
     animation: scaleIn var(--anim-dur) var(--anim-ease) forwards;
+    transition: box-shadow var(--anim-dur) var(--anim-ease);
   }
 
   .mobile-card:hover {
     transform: translateY(-6px) scale(1.03);
   }
 
-  .mobile-card {
-    transition: box-shadow var(--anim-dur) var(--anim-ease);
-  }
-
-  .mobile-route {
+  /* Left content area in mobile cards */
+  .mobile-card>div:first-child {
     display: flex;
-    justify-content: center;
     align-items: center;
+    gap: 8px;
+    /* Gap between route tag/destination */
+    flex-grow: 1;
+    /* Allow it to grow and take space */
   }
 
-  .mobile-route .route-tag {
-    font-size: 1.4em;
-  }
-
+  /* Mobile destination text (can be multiline) */
   .mobile-dest {
     font-size: 0.95em;
     white-space: normal;
+    /* Allow text to wrap */
     word-break: break-word;
     font-weight: 500;
+    flex-grow: 1;
+    /* Take remaining space */
   }
 
   .mobile-dest.mobile-noeta-text {
@@ -566,20 +644,46 @@ table.eta-results tr.eta-data-row:hover td {
     color: var(--on-variant);
   }
 
-  .mobile-times {
+  /* Right content area for platform/ETA */
+  .mobile-meta {
     display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: flex-end;
-    gap: 4px;
+    align-items: center;
+    gap: 8px;
+    /* Gap between circle and time */
+    flex-shrink: 0;
+    /* Prevent shrinking */
+    margin-left: auto;
+    /* Push to the right */
   }
 
+  /* Platform circle */
+  .platform-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1em;
+    /* Adjust font size if needed */
+    font-weight: 700;
+    line-height: 1;
+    /* Helps vertical centering of single digit */
+    flex-shrink: 0;
+    /* Prevent shrinking */
+  }
+
+  /* ETA time text */
   .mobile-times .eta-time {
+    font-size: 0.75em;
+    /* Default KMB size */
     opacity: 0;
     animation: fadeIn var(--anim-dur) var(--anim-ease) forwards;
-    font-size: 0.75em;
+    flex-shrink: 0;
+    /* Prevent shrinking */
   }
 
+  /* For MTR/LR, this is overridden to 1.1em in their JS */
   .mobile-times .eta-time:nth-child(1) {
     animation-delay: 0.1s;
   }
@@ -601,6 +705,7 @@ table.eta-results tr.eta-data-row:hover td {
     display: none;
   }
 
+  /* KMB-specific toggle button (not used by MTR/LR mobile) */
   .mobile-toggle-btn {
     position: absolute;
     top: 12px;
@@ -703,44 +808,4 @@ table.eta-results tr.eta-data-row:hover td {
 .reveal.in-view {
   opacity: 1;
   transform: translateY(0);
-}
-
-
-
-/* MTR & LR mobile card alignment */
-.mobile-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px;
-}
-
-/* left side stays flex-wrapped */
-.mobile-dest {
-  flex: 1;
-  font-size: 1em;
-}
-
-/* right side meta */
-.mobile-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* Colored platform circle, centered */
-.platform-circle {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  line-height: 1;
-}
-
-/* Slightly smaller ETA than bus, but still bigger than default */
-.mobile-meta .eta-time {
-  font-size: 1.1em !important;
 }
