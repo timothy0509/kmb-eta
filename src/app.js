@@ -304,7 +304,7 @@
       '.mobile-card:not(.mobile-mtr) .mobile-route'
     );
     let maxRouteW = 0;
-    // Temporarily reset to auto to get true content width
+    // Temporarily reset --max-route-col-width to auto to get true content width
     rootStyle.setProperty('--max-route-col-width', 'auto');
     routeEls.forEach(el=>{
       const w = el.getBoundingClientRect().width;
@@ -320,7 +320,7 @@
       '.mobile-card .mobile-platform'
     );
     let maxPlatW = 0;
-    // Temporarily reset to auto
+    // Temporarily reset --max-platform-col-width to auto
     rootStyle.setProperty('--max-platform-col-width', 'auto');
     platEls.forEach(el=>{
       // Only consider the width if it contains a visible circle (children.length > 0)
@@ -346,7 +346,7 @@
       EXTRA_ETA_PADDING = 15;
     }
 
-    // Temporarily reset to auto
+    // Temporarily reset --max-times-col-width to auto
     rootStyle.setProperty('--max-times-col-width', 'auto');
     timesButtonEls.forEach(el=>{
       const w = el.offsetWidth; // Use offsetWidth for actual rendered width

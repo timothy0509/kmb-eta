@@ -1,5 +1,5 @@
 /* 1) Google Sans imports */
-@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Google+Sans+Text:wght@400;500;700&family=Google+Sans:wght@400;500;700&family=Google+Sans+Display:wght@400;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Google+Sans+Text:wght@400;500;700&family=Google+Sans:wght@440;500;700&family=Google+Sans+Display:wght@400;700&display=swap");
 
 /* 2) Theme & animation variables */
 :root {
@@ -8,6 +8,7 @@
 
   --font-display: 'Google Sans Display', 'Google Sans Text', sans-serif;
   --font-sans: 'Google Sans', 'Google Sans Text', sans-serif;
+  /* Adjusted to use Google Sans for general sans-serif */
   --font-text: 'Google Sans Text', sans-serif;
 
   --bg-light: #fdfdfe;
@@ -191,17 +192,8 @@ body {
   }
 }
 
-@keyframes pulse {
+/* --- REMOVED UNUSED PULSE KEYFRAME --- */
 
-  0%,
-  100% {
-    background-color: transparent;
-  }
-
-  50% {
-    background-color: rgba(66, 133, 244, 0.2);
-  }
-}
 
 /* 6) Utility classes */
 .fade-in {
@@ -459,13 +451,10 @@ h1 {
     0 2px 5px var(--shadow);
   padding: 25px;
   overflow-x: auto;
-  /* --- FIX START --- */
-  opacity: 1;
-  /* Ensure it's not transparent */
-  transform: none;
-  /* Ensure no initial transform state hides it */
-  animation: none;
-  /* Remove any animation that might prevent immediate display */
+  /* --- FIX START: Ensure desktop tables are visible by default and animate in --- */
+  opacity: 0;
+  transform: translateY(8px) scale(0.95);
+  animation: scaleIn var(--anim-dur) var(--anim-ease) forwards;
   /* --- FIX END --- */
   transition:
     background var(--anim-dur),
@@ -623,10 +612,8 @@ table.eta-results tr.eta-data-row:hover td {
   padding: 20px;
 }
 
-/* 18) Pulse on ETA update */
-.eta-updated {
-  animation: pulse 0.8s ease-out;
-}
+/* --- REMOVED UNUSED PULSE CLASS --- */
+
 
 /* 19) Scroll-progress */
 .progress-bar {
@@ -672,6 +659,11 @@ table.eta-results tr.eta-data-row:hover td {
 
 /* === 22) Mobile Card Layout & Specific Mode Styling === */
 @media (max-width: 576px) {
+  .eta-table-container {
+    /* --- FIX: Hide desktop tables on mobile --- */
+    display: none;
+  }
+
   .mobile-card {
     display: flex;
     align-items: center;
