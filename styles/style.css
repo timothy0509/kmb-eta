@@ -65,8 +65,9 @@
 
   /* Dynamic CSS variables for mobile alignment */
   --max-route-col-width: 0px;
-  /* --max-dest-col-width is removed from here */
   --max-platform-col-width: 0px;
+  --max-times-col-width: 0px;
+  /* New variable for ETA column width */
   --mobile-gap: 12px;
   /* standard gap */
 }
@@ -458,10 +459,14 @@ h1 {
     0 2px 5px var(--shadow);
   padding: 25px;
   overflow-x: auto;
-  opacity: 0;
-  transform: translateY(8px) scale(0.95);
-  transform-origin: top center;
-  animation: scaleIn var(--anim-dur) var(--anim-ease) forwards;
+  /* --- FIX START --- */
+  opacity: 1;
+  /* Ensure it's not transparent */
+  transform: none;
+  /* Ensure no initial transform state hides it */
+  animation: none;
+  /* Remove any animation that might prevent immediate display */
+  /* --- FIX END --- */
   transition:
     background var(--anim-dur),
     box-shadow var(--anim-dur);
@@ -676,8 +681,8 @@ table.eta-results tr.eta-data-row:hover td {
   /* 22.1) ROUTE column styling */
   .mobile-card .mobile-route {
     /* Applies to all modes to ensure sizing */
-    flex: 0 0 auto;
-    /* Allow content to dictate size initially */
+    flex-shrink: 0;
+    /* Prevent shrinking */
     margin-right: 8px;
     /* Standard gap between route and destination */
   }
@@ -691,7 +696,8 @@ table.eta-results tr.eta-data-row:hover td {
 
   /* MTR: collapse the route column completely */
   .mobile-card.mobile-mtr .mobile-route {
-    flex: 0 0 0;
+    flex-basis: 0;
+    /* Set initial size to 0 */
     margin-right: 0;
     overflow: hidden;
     /* Hide the route content entirely */
@@ -699,40 +705,46 @@ table.eta-results tr.eta-data-row:hover td {
 
   /* Dynamically set route column width after all elements are rendered (JS sets --max-route-col-width) */
   .mobile-card:not(.mobile-mtr) .mobile-route {
-    flex: 0 0 var(--max-route-col-width);
+    flex-basis: var(--max-route-col-width);
   }
 
 
   /* 22.2) DESTINATION column */
   .mobile-dest {
-    flex: 1;
-    /* Allow it to grow and shrink, filling available space */
+    flex-grow: 1;
+    /* Allow it to grow and take available space */
+    flex-shrink: 1;
+    min-width: 0;
+    /* Allow text to wrap within available space */
   }
 
-  /* 22.3) META Wrapper (PLATFORM + TIMES/BUTTON) */
-  .mobile-meta {
-    margin-left: auto;
-    /* Push the entire meta group to the right */
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    /* Gap BETWEEN platform circle and ETA times/warning button */
-  }
-
-  /* 22.4) PLATFORM element (inside .mobile-meta) */
+  /* 22.3) PLATFORM element */
   .mobile-platform {
-    flex: 0 0 var(--max-platform-col-width);
+    flex-shrink: 0;
+    /* Prevent shrinking */
+    flex-basis: var(--max-platform-col-width);
     /* Fixed width based on measurement */
+    margin-left: var(--mobile-gap);
+    /* Gap from destination */
     display: flex;
     justify-content: flex-end;
     /* Right-align content (the circle) within its fixed space */
     align-items: center;
   }
 
-  /* 22.5) ETA Times (inside .mobile-meta) */
+  /* 22.4) ETA Times (or warning button for no-ETA) */
+  .mobile-times,
+  .mobile-toggle-btn {
+    /* Apply common flex properties to both */
+    flex-shrink: 0;
+    /* Prevent shrinking */
+    flex-basis: var(--max-times-col-width);
+    /* Fixed width based on measurement */
+    margin-left: var(--mobile-gap);
+    /* Gap from platform/dest for button */
+  }
+
   .mobile-times {
-    flex: 0 0 auto;
-    /* Let content dictate width */
     display: flex;
     flex-direction: column;
     align-items: flex-end;
@@ -761,11 +773,10 @@ table.eta-results tr.eta-data-row:hover td {
   }
 
 
-  /* 22.6) Warning Button (inside .mobile-meta) */
+  /* 22.5) Warning Button (re-style for fixed width) */
   .mobile-toggle-btn {
-    flex: 0 0 auto;
-    /* Let button dictate its width */
-    width: 28px;
+    width: auto;
+    /* Allow flex-basis to control width */
     height: 28px;
     border: none;
     background: rgba(0, 0, 0, 0.08);
@@ -779,12 +790,20 @@ table.eta-results tr.eta-data-row:hover td {
     transition: background var(--anim-dur), transform var(--anim-ease);
     animation: popIn var(--anim-dur) var(--anim-ease) forwards;
     z-index: 1;
+    padding: 0 8px;
+    /* Add some padding back to the button itself */
   }
 
   .mobile-toggle-btn.warning {
     background: var(--kmb-red);
     color: #fff;
   }
+
+  .mobile-toggle-btn:hover {
+    transform: none;
+    /* Override potential hover transforms from generic button styles */
+  }
+
 
   /* Expanded details panel (always below the main card content) */
   .mobile-details {

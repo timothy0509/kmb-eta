@@ -1,7 +1,7 @@
 // src/kmb.js
 
 ;(function(){
-  // Removed KMB I18n block, moved to app.js
+  // Removed KMB I18n block, now managed globally in app.js
 
   const SUFFIX = { en:'en', tc:'tc', sc:'sc' };
 
@@ -87,7 +87,8 @@
 
   window.buildKMB=async function(){
     const currentLang=window.getLang(); // Get current lang from app.js global
-    const L=window.ALL_LANGS_DATA.kmb[currentLang]; // Access centralized lang data
+    // Access centralized lang data for current mode and language
+    const L=window.ALL_LANGS_DATA.kmb[currentLang];
     const suffix=SUFFIX[currentLang];
 
     const stopIn=document.getElementById('stopName').value
@@ -105,7 +106,7 @@
       s.name_sc.toLowerCase().includes(stopIn)
     );
     if(!matches.length){
-      results.textContent=L.noEtas; // L.noEtas is still accessed via the specific lang, it's not a common string.
+      results.textContent=L.noEtas; // L.noEtas is correct
       return;
     }
 
@@ -211,23 +212,19 @@
             });
           }
 
-          // META: Group cPlatform and cTimes (or button)
-          const meta=document.createElement('div');
-          meta.className='mobile-meta';
-          meta.append(cPlatform); // Always append platform wrapper; it will be empty if no data
-
+          // Append elements to the card in correct order
+          card.append(cRoute, cDest, cPlatform); // No mobile-meta div for this structure
+          
           if(r.etas.some(e=>e.eta)){
-            meta.append(cTimes); // If ETAs, append times to meta
+            card.append(cTimes); // If ETAs, append times directly
           } else {
             const btn=document.createElement('button');
             btn.className='mobile-toggle-btn warning';
             btn.setAttribute('aria-label','Toggle details');
             btn.innerHTML='&#9888;';
             btn.addEventListener('click', toggleDetails);
-            meta.append(btn); // If no ETAs, append button to meta
+            card.append(btn); // If no ETAs, append button directly
           }
-
-          card.append(cRoute, cDest, meta); // Card now appends route, dest, and the meta wrapper
 
           function toggleDetails(evt){
             if(evt) evt.stopPropagation();
@@ -256,9 +253,7 @@
 
           if(r.etas.some(e=>e.eta)){
             card.addEventListener('dblclick', toggleDetails);
-          } else {
-             // Button already added to meta, no need for separate listener on card for no-ETA cases.
-          }
+          } // Button already appended for no-ETA cases, no need for separate listener on card.
 
           results.appendChild(card);
 
@@ -268,7 +263,7 @@
           });
         });
 
-        window.alignMobileColumns();
+        window.alignMobileColumns(); // Align columns after all cards are in DOM
       } else {
         // desktop table rendering...
         const wrap=document.createElement('div');
@@ -277,14 +272,15 @@
         table.className='eta-results';
         const showPlat=rows.some(r=>r.platform);
         const hdrs=[
-          LANGS.en.tableHeaders.Route, // Access via base english for desktop headers
-          LANGS.en.tableHeaders.Destination,
-          ...(showPlat?[LANGS.en.tableHeaders.Platform]:[]),
-          LANGS.en.tableHeaders.StopCode,
-          LANGS.en.tableHeaders.ETA1,
-          LANGS.en.tableHeaders.ETA2,
-          LANGS.en.tableHeaders.ETA3,
-          LANGS.en.tableHeaders.Remarks
+          // Access desktop headers via L (current localized data for KMB)
+          L.tableHeaders.Route,
+          L.tableHeaders.Destination,
+          ...(showPlat?[L.tableHeaders.Platform]:[]),
+          L.tableHeaders.StopCode,
+          L.tableHeaders.ETA1,
+          L.tableHeaders.ETA2,
+          L.tableHeaders.ETA3,
+          L.tableHeaders.Remarks
         ];
         table.innerHTML=`<thead><tr>${
           hdrs.map(h=>`<th>${h}</th>`).join('')
@@ -355,5 +351,5 @@
       }
     }
   };
-  // Removed updateKMBText, moved to app.js
+  // Removed updateKMBText, now managed globally in app.js
 })();

@@ -1,6 +1,6 @@
 // src/mtr.js
 ;(function(){
-  // Removed LANGS block, moved to app.js
+  // Removed LANGS block, now managed globally in app.js
 
   const API = (line,sta,lang='en') =>
     `https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php`+
@@ -26,7 +26,7 @@
   function getLang(){ return document.querySelector('.lang-switch button.active').dataset.value; }
   function isMobile(){ return window.innerWidth<=576; }
 
-  // Removed updateMTRText, moved to app.js
+  // Removed updateMTRText, now managed globally in app.js
 
   window.buildMTR = async function(){
     const currentLang=getLang(); // Get current lang from app.js global
@@ -61,7 +61,7 @@
     }
     if(!any) results.textContent=L.noData;
 
-    if(isMobile()) window.alignMobileColumns();
+    if(isMobile()) window.alignMobileColumns(); // Align columns after all cards are in DOM
   };
 
   function renderBlock(block,line){
@@ -120,12 +120,8 @@
           tspan.textContent=(e.time||'').split(' ')[1]||e.time;
           cTimes.appendChild(tspan);
 
-          // META: Group cPlatform and cTimes
-          const meta=document.createElement('div');
-          meta.className='mobile-meta';
-          meta.append(cPlatform, cTimes);
-
-          card.append(cRoute,cDest,meta);
+          // Card now appends elements directly
+          card.append(cRoute,cDest,cPlatform,cTimes);
           results.appendChild(card);
         });
       } else {

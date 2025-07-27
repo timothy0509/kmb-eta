@@ -1,6 +1,6 @@
 // src/lr.js
 ;(function(){
-  // Removed LANGS block, moved to app.js
+  // Removed LANGS block, now managed globally in app.js
 
   const API = id =>
     `https://rt.data.gov.hk/v1/transport/mtr/lrt/getSchedule?station_id=${encodeURIComponent(id)}`;
@@ -23,7 +23,7 @@
   function getLang(){ return document.querySelector('.lang-switch button.active').dataset.value; }
   function isMobile(){ return window.innerWidth<=576; }
 
-  // Removed updateLRText, moved to app.js
+  // Removed updateLRText, now managed globally in app.js
 
   window.buildLR = async function(){
     const currentLang=getLang(); // Get current lang from app.js global
@@ -86,16 +86,12 @@
             tspan.textContent=currentLang==='en'?e.time_en:e.time_ch; // Use currentLang here
             cTimes.appendChild(tspan);
 
-            // META: Group cPlatform and cTimes
-            const meta=document.createElement('div');
-            meta.className='mobile-meta';
-            meta.append(cPlatform, cTimes);
-
-            card.append(cRoute,cDest,meta);
+            // Card now appends elements directly
+            card.append(cRoute,cDest,cPlatform,cTimes);
             results.appendChild(card);
           });
 
-          window.alignMobileColumns();
+          window.alignMobileColumns(); // Align columns after all cards are in DOM
         } else {
           const wrap=document.createElement('div');
           wrap.className='eta-table-container';
