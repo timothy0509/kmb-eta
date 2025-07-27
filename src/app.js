@@ -1,125 +1,257 @@
 // src/app.js
-
-function getMode(){ return document.querySelector('.mode-switch button.active').dataset.value; }
-function getLang(){ return document.querySelector('.lang-switch button.active').dataset.value; }
-function updateUIByMode(){
-  const mode=getMode();
-  const routeDiv=document.getElementById('routeNumbers').parentElement;
-  const stopIn=document.getElementById('stopName');
-  if(mode==='kmb'){
-    routeDiv.style.display=''; stopIn.setAttribute('list','stopsList');
-  } else {
-    routeDiv.style.display='none'; stopIn.removeAttribute('list');
-  }
-}
-
-let refreshTimer=null, hasBuilt=false;
-window.initialBuild=function(){
-  if(refreshTimer) clearInterval(refreshTimer);
-  const m=getMode();
-  if(m==='kmb'){
-    window.buildKMB(); refreshTimer=setInterval(window.refreshKMB,30000);
-  } else if(m==='mtr'){
-    window.buildMTR(); refreshTimer=setInterval(window.buildMTR,30000);
-  } else {
-    window.buildLR(); refreshTimer=setInterval(window.buildLR,30000);
-  }
-};
-
-// ripple
-document.addEventListener('click',e=>{
-  const btn=e.target.closest('.ripple');
-  if(!btn) return;
-  const r=btn.getBoundingClientRect();
-  btn.style.setProperty('--ripple-x',`${e.clientX-r.left}px`);
-  btn.style.setProperty('--ripple-y',`${e.clientY-r.top}px`);
-  btn.classList.remove('animate');
-  void btn.offsetWidth;
-  btn.classList.add('animate');
-});
-
-// theme
-const themeToggle=document.getElementById('themeToggle');
-themeToggle.checked=document.documentElement.classList.contains('dark-mode');
-themeToggle.addEventListener('change',e=>{
-  document.documentElement.classList.toggle('dark-mode',e.target.checked);
-  localStorage.setItem('theme',e.target.checked?'dark':'light');
-});
-
-document.addEventListener('DOMContentLoaded',()=>{
-  // populate datalist
-  window.getStops().then(stops=>{
-    const dl=document.getElementById('stopsList');
-    stops.forEach(s=>{
-      const opt=document.createElement('option');opt.value=s.name_en;dl.appendChild(opt);
-    });
-  });
-
-  // mode switch
-  document.querySelectorAll('.mode-switch button').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-      document.querySelectorAll('.mode-switch button')
-        .forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active');
-      updateUIByMode();
-      const m=getMode();
-      if(m==='kmb') window.updateKMBText();
-      else if(m==='mtr') window.updateMTRText();
-      else window.updateLRText();
-      if(hasBuilt) window.initialBuild();
-    });
-  });
-
-  // lang switch
-  document.querySelectorAll('.lang-switch button').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-      document.querySelectorAll('.lang-switch button')
-        .forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active');
-      const m=getMode();
-      if(m==='kmb') window.updateKMBText();
-      else if(m==='mtr') window.updateMTRText();
-      else window.updateLRText();
-      if(hasBuilt) window.initialBuild();
-    });
-  });
-
-  // form submit
-  const sf=document.getElementById('searchForm');
-  sf.addEventListener('submit',ev=>{
-    ev.preventDefault();
-    const m=getMode();
-    if(m==='kmb') window.updateKMBText();
-    else if(m==='mtr') window.updateMTRText();
-    else window.updateLRText();
-    localStorage.setItem('lastSearch',JSON.stringify({
-      mode:getMode(),lang:getLang(),
-      stopName:document.getElementById('stopName').value.trim(),
-      routeNumbers:document.getElementById('routeNumbers')?.value.trim()||''
-    }));
-    hasBuilt=true; window.initialBuild();
-  });
-
-  // restore
-  const last=localStorage.getItem('lastSearch');
-  if(last){
-    try{
-      const {mode,lang,stopName,routeNumbers}=JSON.parse(last);
-      document.querySelectorAll('.mode-switch button')
-        .forEach(b=>b.classList.toggle('active',b.dataset.value===mode));
-      document.querySelectorAll('.lang-switch button')
-        .forEach(b=>b.classList.toggle('active',b.dataset.value===lang));
-      updateUIByMode();
-      if(mode==='kmb') window.updateKMBText();
-      else if(mode==='mtr') window.updateMTRText();
-      else window.updateLRText();
-      document.getElementById('stopName').value=stopName;
-      if(mode==='kmb') document.getElementById('routeNumbers').value=routeNumbers;
-      hasBuilt=true; window.initialBuild();
-    }catch(e){
-      console.error(e); updateUIByMode(); window.updateKMBText();
+;(function(){
+  // Centralized language data for all modes
+  window.ALL_LANGS_DATA = {
+    kmb: {
+      en: {
+        stopNameLabel: 'Stop Name (partial)',
+        stopNamePlaceholder: 'e.g. Kai Yip Estate',
+        routeNumbersLabel: 'Route Numbers (comma-sep, optional)',
+        routeNumbersPlaceholder: 'e.g. 14, 62P, 62X, 259D, X42C',
+        searchButton: 'Search ETAs'
+      },
+      tc: {
+        stopNameLabel: '巴士站名稱 (部分字串)',
+        stopNamePlaceholder: '例如：啟業邨',
+        routeNumbersLabel: '路線號碼 (以逗號分隔，非必須)',
+        routeNumbersPlaceholder: '例如：14, 62P, 62X, 259D, X42C',
+        searchButton: '查詢到站時間'
+      },
+      sc: {
+        stopNameLabel: '巴士站名稱 (部分字串)',
+        stopNamePlaceholder: '例如：啟業邨',
+        routeNumbersLabel: '路线号码 (以逗号分隔，非必须)',
+        routeNumbersPlaceholder: '例如：14, 62P, 62X, 259D, X42C',
+        searchButton: '查询到站时间'
+      }
+    },
+    mtr: {
+      en: {
+        inputLabel: 'Station Code / Name',
+        inputPlaceholder: 'e.g. TIK  Tiu Keng Leng',
+        searchButton: 'Search Trains'
+      },
+      tc: {
+        inputLabel: '站點代號 / 名稱',
+        inputPlaceholder: '例如：TIK  調景嶺',
+        searchButton: '查詢列車'
+      },
+      sc: {
+        inputLabel: '站点编号 / 名称',
+        inputPlaceholder: '例如：TIK  调景岭',
+        searchButton: '查询列车'
+      }
+    },
+    lr: {
+      en: {
+        inputLabel: 'Light Rail Stop Name',
+        inputPlaceholder: 'e.g. Butterfly',
+        searchButton: 'Search Trains'
+      },
+      tc: {
+        inputLabel: '輕鐵站名',
+        inputPlaceholder: '例如：蝶翠苑',
+        searchButton: '查詢列車'
+      },
+      sc: {
+        inputLabel: '轻铁站名',
+        inputPlaceholder: '例如：蝶翠苑',
+        searchButton: '查询列车'
+      }
     }
-  } else {
-    updateUIByMode(); window.updateKMBText();
+  };
+
+
+  // Return active language code
+  window.getLang = function(){
+    return document.querySelector('.lang-switch button.active')
+      .dataset.value;
+  };
+
+  // Return active mode code
+  window.getMode = function(){
+    return document.querySelector('.mode-switch button.active')
+      .dataset.value;
+  };
+
+  // Immediately apply saved theme and set toggle
+  (function(){
+    const t = localStorage.getItem('theme');
+    if (t === 'dark') document.documentElement.classList.add('dark-mode');
+    const chk = document.getElementById('themeToggle');
+    if (chk) chk.checked = (t === 'dark');
+  })();
+
+  // Theme toggle listener
+  document.addEventListener('DOMContentLoaded', function(){
+    const chk = document.getElementById('themeToggle');
+    chk.addEventListener('change', function(){
+      if (this.checked){
+        document.documentElement.classList.add('dark-mode');
+        localStorage.setItem('theme','dark');
+      } else {
+        document.documentElement.classList.remove('dark-mode');
+        localStorage.setItem('theme','light');
+      }
+    });
+  });
+
+  // Main function to update all dynamic UI text and input attributes
+  window.updateUITextAndInputs = function() {
+    const currentMode = window.getMode();
+    const currentLang = window.getLang();
+    const modeData = window.ALL_LANGS_DATA[currentMode][currentLang];
+
+    // Get common elements
+    const labelStopName = document.getElementById('labelStopName');
+    const stopNameInput = document.getElementById('stopName');
+    const labelRouteNumbers = document.getElementById('labelRouteNumbers');
+    const routeNumbersInput = document.getElementById('routeNumbers');
+    const routeNumbersDiv = routeNumbersInput.parentElement; // Parent div contains both label and input
+    const searchButton = document.querySelector('.controls button');
+
+    // Update common text fields
+    labelStopName.textContent = modeData.inputLabel || modeData.stopNameLabel;
+    stopNameInput.placeholder = modeData.inputPlaceholder || modeData.stopNamePlaceholder;
+    searchButton.textContent = modeData.searchButton;
+
+    // KMB specific fields and datalist
+    if (currentMode === 'kmb') {
+      routeNumbersDiv.style.display = ''; // Show route numbers section
+      labelRouteNumbers.textContent = modeData.routeNumbersLabel;
+      routeNumbersInput.placeholder = modeData.routeNumbersPlaceholder;
+      stopNameInput.setAttribute('list', 'stopsList'); // Enable datalist for KMB
+    } else {
+      routeNumbersDiv.style.display = 'none'; // Hide route numbers section
+      stopNameInput.removeAttribute('list'); // Disable datalist for other modes
+    }
+  };
+
+  // Mode & language segmented controls
+  document.addEventListener('DOMContentLoaded', function(){
+    // Mode switch
+    document.querySelectorAll('.mode-switch button')
+      .forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          document.querySelectorAll('.mode-switch button')
+            .forEach(b=>b.classList.remove('active'));
+          btn.classList.add('active');
+
+          document.getElementById('results').innerHTML = ''; // Clear results
+          window.updateUITextAndInputs(); // Update all UI text and inputs
+        });
+      });
+
+    // Language switch
+    document.querySelectorAll('.lang-switch button')
+      .forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          document.querySelectorAll('.lang-switch button')
+            .forEach(b=>b.classList.remove('active'));
+          btn.classList.add('active');
+
+          window.updateUITextAndInputs(); // Update all UI text based on new language
+        });
+      });
+
+    // Initial UI update on load
+    window.updateUITextAndInputs();
+  });
+
+
+  // Search form handler
+  document.addEventListener('DOMContentLoaded', function(){
+    document.getElementById('searchForm')
+      .addEventListener('submit', function(e){
+        e.preventDefault();
+        const results = document.getElementById('results');
+        results.innerHTML = '';
+        const mode = window.getMode();
+        if (mode==='kmb') window.buildKMB();
+        else if (mode==='mtr') window.buildMTR();
+        else if (mode==='lr')  window.buildLR();
+      });
+  });
+
+  // Ripple effect
+  document.addEventListener('click', function(e){
+    const el = e.target.closest('.ripple');
+    if (!el) return;
+    el.classList.remove('animate');
+    void el.offsetWidth;
+    el.classList.add('animate');
+  });
+
+  // Scroll-progress bar
+  window.addEventListener('scroll', function(){
+    const doc = document.documentElement;
+    const pct = (doc.scrollTop) /
+      (doc.scrollHeight - doc.clientHeight) * 100;
+    document.querySelector('.progress-bar')
+      .style.width = pct + '%';
+  });
+
+  // Scroll-reveal
+  function onReveal(){
+    document.querySelectorAll('.reveal').forEach(el=>{
+      const r = el.getBoundingClientRect();
+      if (r.top < window.innerHeight * 0.9) {
+        el.classList.add('in-view');
+      }
+    });
   }
-});
+  document.addEventListener('scroll', onReveal);
+  window.addEventListener('resize', onReveal);
+  document.addEventListener('DOMContentLoaded', onReveal);
+
+  // Populate KMB stops datalist
+  document.addEventListener('DOMContentLoaded', async function(){
+    try {
+      const stops = await window.getStops();
+      const dl = document.getElementById('stopsList');
+      // Clear existing options in case it's repopulated
+      dl.innerHTML = '';
+      stops.forEach(s=>{
+        const opt = document.createElement('option');
+        opt.value = s.name_en; // Assuming English names for datalist for consistency
+        dl.appendChild(opt);
+      });
+    } catch {}
+  });
+
+  // Measure widest route & platform columns for fluid alignment
+  window.alignMobileColumns = function(){
+    // ROUTE: Measure only for non-MTR cards as MTR hides it
+    const routeEls = document.querySelectorAll(
+      '.mobile-card:not(.mobile-mtr) .mobile-route'
+    );
+    let maxRouteW = 0;
+    routeEls.forEach(el=>{
+      // Use clientWidth which includes padding but not margin/border
+      const w = el.clientWidth; 
+      if (w > maxRouteW) maxRouteW = w;
+    });
+    document.documentElement.style.setProperty(
+      '--max-route-col-width',
+      maxRouteW + 'px'
+    );
+
+    // PLATFORM: Measure only if it has actual content (the circle)
+    const platEls = document.querySelectorAll(
+      '.mobile-card .mobile-platform'
+    );
+    let maxPlatW = 0;
+    platEls.forEach(el=>{
+      // Only consider the width if it contains a visible circle (children.length > 0)
+      if (el.children.length > 0) {
+        // Use clientWidth for the actual circle itself if it's the target, or el.clientWidth
+        const w = el.clientWidth; 
+        if (w > maxPlatW) maxPlatW = w;
+      }
+    });
+    document.documentElement.style.setProperty(
+      '--max-platform-col-width',
+      maxPlatW + 'px'
+    );
+  };
+})();

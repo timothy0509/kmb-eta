@@ -1,0 +1,28 @@
+name: Cache KMB Stop List
+
+on:
+  schedule:
+    # 05:00 HKT = 21:00 UTC previous day
+    - cron: '0 21 * * *'
+  workflow_dispatch:
+
+jobs:
+  update-stops:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v3
+
+      - name: Fetch KMB stop list
+        run: |
+          mkdir -p cache
+          curl -sSf https://data.etabus.gov.hk/v1/transport/kmb/stop \
+            -o cache/kmb_stops.json
+
+      - name: Commit & push updated cache
+        uses: EndBug/add-and-commit@v9
+        with:
+          author_name: github-actions[bot]
+          author_email: github-actions[bot]@users.noreply.github.com
+          message: update cached KMB stop list
+          add: cache/kmb_stops.json

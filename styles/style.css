@@ -61,6 +61,14 @@
   /* Default MD3 container colors to light mode versions */
   --primary-container: var(--primary-container-light);
   --on-primary-container: var(--on-primary-container-light);
+
+
+  /* Dynamic CSS variables for mobile alignment */
+  --max-route-col-width: 0px;
+  /* --max-dest-col-width is removed from here */
+  --max-platform-col-width: 0px;
+  --mobile-gap: 12px;
+  /* standard gap */
 }
 
 html.dark-mode {
@@ -250,7 +258,6 @@ h1 {
   cursor: pointer;
   font-family: var(--font-sans);
   font-weight: 500;
-  /* MD3 often uses medium weight for labels */
   position: relative;
   /* For z-index to work */
   z-index: 1;
@@ -467,23 +474,21 @@ h1 {
 
 .eta-table-container h3,
 .eta-table-container h4 {
-  /* Add h4 to this rule */
-  margin: 0 0 20px;
   font-family: var(--font-sans);
   font-size: 1.4em;
   font-weight: 500;
   color: var(--on-surface);
   border-bottom: 1.5px solid var(--outline);
   padding-bottom: 12px;
+  margin: 0 0 20px;
 }
 
-/* Specific style for MTR/LR headers for colored background */
+/* For MTR line-tag */
 h3 span.line-tag {
   display: inline-block;
   padding: 0.2em 0.5em;
   border-radius: 4px;
   margin-right: 0.5em;
-  /* Space between colored tag and text */
 }
 
 /* 13) Table rows */
@@ -530,6 +535,7 @@ table.eta-results tr.eta-data-row:hover td {
   font-family: var(--font-sans);
   font-weight: 700;
   font-size: 0.875em;
+  /* Base size, will be overridden for mobile */
   line-height: 1.2;
   box-shadow: 0 1px 2px var(--shadow);
   white-space: nowrap;
@@ -581,190 +587,21 @@ table.eta-results tr.eta-data-row:hover td {
   color: #000;
 }
 
-/* 15) Mobile cards */
-@media (max-width: 576px) {
-  .eta-table-container {
-    display: none;
-  }
-
-  /* Align cards content to the top for multi-line text */
-  .mobile-card {
-    --shadow-offset-x: 0px;
-    --shadow-offset-y: 0px;
-    box-shadow:
-      var(--shadow-offset-x) var(--shadow-offset-y) 12px rgba(0, 0, 0, 0.2),
-      0 3px 10px var(--shadow);
-    display: flex;
-    /* Use flexbox for the card itself */
-    align-items: flex-start;
-    /* Align content to the top */
-    justify-content: space-between;
-    /* Push left and right content apart */
-    padding: 12px;
-    /* Adjust padding */
-    margin-bottom: 16px;
-    background: var(--surface);
-    border-radius: var(--radius-md);
-    position: relative;
-    transform-origin: center bottom;
-    will-change: transform, box-shadow;
-    opacity: 0;
-    transform: translateY(8px) scale(0.95);
-    animation: scaleIn var(--anim-dur) var(--anim-ease) forwards;
-    transition: box-shadow var(--anim-dur) var(--anim-ease);
-  }
-
-  .mobile-card:hover {
-    transform: translateY(-6px) scale(1.03);
-  }
-
-  /* Left content area in mobile cards */
-  .mobile-card>div:first-child {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    /* Gap between route tag/destination */
-    flex-grow: 1;
-    /* Allow it to grow and take space */
-  }
-
-  /* Mobile destination text (can be multiline) */
-  .mobile-dest {
-    font-size: 0.95em;
-    white-space: normal;
-    /* Allow text to wrap */
-    word-break: break-word;
-    font-weight: 500;
-    flex-grow: 1;
-    /* Take remaining space */
-  }
-
-  .mobile-dest.mobile-noeta-text {
-    font-style: italic;
-    color: var(--on-variant);
-  }
-
-  /* Right content area for platform/ETA */
-  .mobile-meta {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    /* Gap between circle and time */
-    flex-shrink: 0;
-    /* Prevent shrinking */
-    margin-left: auto;
-    /* Push to the right */
-  }
-
-  /* Platform circle */
-  .platform-circle {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1em;
-    /* Adjust font size if needed */
-    font-weight: 700;
-    line-height: 1;
-    /* Helps vertical centering of single digit */
-    flex-shrink: 0;
-    /* Prevent shrinking */
-  }
-
-  /* ETA time text */
-  .mobile-times .eta-time {
-    font-size: 0.75em;
-    /* Default KMB size */
-    opacity: 0;
-    animation: fadeIn var(--anim-dur) var(--anim-ease) forwards;
-    flex-shrink: 0;
-    /* Prevent shrinking */
-  }
-
-  /* For MTR/LR, this is overridden to 1.1em in their JS */
-  .mobile-times .eta-time:nth-child(1) {
-    animation-delay: 0.1s;
-  }
-
-  .mobile-times .eta-time:nth-child(2) {
-    animation-delay: 0.2s;
-  }
-
-  .mobile-times .eta-time:nth-child(3) {
-    animation-delay: 0.3s;
-  }
-
-  .mobile-times .eta-time:nth-child(1):not(.scheduled-eta) {
-    color: var(--primary-color);
-    font-weight: 700;
-  }
-
-  .mobile-noeta {
-    display: none;
-  }
-
-  /* KMB-specific toggle button (not used by MTR/LR mobile) */
-  .mobile-toggle-btn {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    width: 28px;
-    height: 28px;
-    border: none;
-    background: rgba(0, 0, 0, 0.08);
-    color: var(--on-surface);
-    border-radius: var(--radius-pill);
-    font-size: 1.1em;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: background var(--anim-dur), transform var(--anim-ease);
-    animation: popIn var(--anim-dur) var(--anim-ease) forwards;
-    z-index: 1;
-  }
-
-  .mobile-toggle-btn:hover {
-    transform: scale(1.1);
-    background: rgba(0, 0, 0, 0.12);
-  }
-
-  .mobile-toggle-btn.warning {
-    background: var(--kmb-red);
-    color: #fff;
-  }
-
-  .mobile-card.expanded {
-    background: var(--hover-light);
-  }
-
-  .mobile-card.expanded .mobile-toggle-btn {
-    transform: rotate(180deg);
-    background: var(--primary-color);
-    color: #fff;
-  }
-
-  .mobile-details {
-    grid-column: 1 / -1;
-    margin-top: 12px;
-    padding: 12px;
-    border-radius: var(--radius-sm);
-    background: var(--bg);
-    border: 1px solid var(--outline);
-    font-size: 0.8em;
-    color: var(--on-variant);
-    line-height: 1.4;
-    opacity: 0;
-    animation: slideDown var(--anim-dur) var(--anim-ease) forwards;
-    will-change: opacity, transform;
-  }
-
-  .mobile-details.closing {
-    animation: slideUp var(--anim-dur) var(--anim-ease) forwards;
-  }
+/* 15) Platform circle styling (for LR and MTR) */
+.platform-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  line-height: 1;
+  /* helps perfect vertical centering */
+  flex-shrink: 0;
+  box-shadow: 0 1px 2px var(--shadow);
 }
+
 
 /* 16) Footer */
 .app-footer {
@@ -781,12 +618,12 @@ table.eta-results tr.eta-data-row:hover td {
   padding: 20px;
 }
 
-/* 19) Pulse on ETA update */
+/* 18) Pulse on ETA update */
 .eta-updated {
   animation: pulse 0.8s ease-out;
 }
 
-/* 20) Scroll-progress */
+/* 19) Scroll-progress */
 .progress-bar {
   position: fixed;
   top: 0;
@@ -798,7 +635,7 @@ table.eta-results tr.eta-data-row:hover td {
   transition: width 0.2s ease-out;
 }
 
-/* 21) Scroll-reveal */
+/* 20) Scroll-reveal */
 .reveal {
   opacity: 0;
   transform: translateY(20px);
@@ -808,4 +645,149 @@ table.eta-results tr.eta-data-row:hover td {
 .reveal.in-view {
   opacity: 1;
   transform: translateY(0);
+}
+
+
+/* === 21) Mobile Card Base Styling (Applies to all cards) === */
+.mobile-card {
+  box-shadow:
+    0 3px 10px var(--shadow),
+    0 2px 5px var(--shadow);
+  margin-bottom: 16px;
+  /* Spacing between cards */
+  background: var(--surface);
+  /* White background for cards */
+  border-radius: var(--radius-md);
+  /* Rounded corners for cards */
+  position: relative;
+  opacity: 0;
+  animation: scaleIn var(--anim-dur) var(--anim-ease) forwards;
+  transition: box-shadow var(--anim-dur) var(--anim-ease);
+}
+
+/* === 22) Mobile Card Layout & Specific Mode Styling === */
+@media (max-width: 576px) {
+  .mobile-card {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+  }
+
+  /* 22.1) ROUTE column styling */
+  .mobile-card .mobile-route {
+    /* Applies to all modes to ensure sizing */
+    flex: 0 0 auto;
+    /* Allow content to dictate size initially */
+    margin-right: 8px;
+    /* Standard gap between route and destination */
+  }
+
+  /* Specific: KMB and LR route number size */
+  .mobile-kmb .mobile-route .route-tag,
+  .mobile-lr .mobile-route .route-tag {
+    font-size: 1.2em;
+    /* Increase font size for KMB and LR route numbers */
+  }
+
+  /* MTR: collapse the route column completely */
+  .mobile-card.mobile-mtr .mobile-route {
+    flex: 0 0 0;
+    margin-right: 0;
+    overflow: hidden;
+    /* Hide the route content entirely */
+  }
+
+  /* Dynamically set route column width after all elements are rendered (JS sets --max-route-col-width) */
+  .mobile-card:not(.mobile-mtr) .mobile-route {
+    flex: 0 0 var(--max-route-col-width);
+  }
+
+
+  /* 22.2) DESTINATION column */
+  .mobile-dest {
+    flex: 1;
+    /* Allow it to grow and shrink, filling available space */
+  }
+
+  /* 22.3) META Wrapper (PLATFORM + TIMES/BUTTON) */
+  .mobile-meta {
+    margin-left: auto;
+    /* Push the entire meta group to the right */
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    /* Gap BETWEEN platform circle and ETA times/warning button */
+  }
+
+  /* 22.4) PLATFORM element (inside .mobile-meta) */
+  .mobile-platform {
+    flex: 0 0 var(--max-platform-col-width);
+    /* Fixed width based on measurement */
+    display: flex;
+    justify-content: flex-end;
+    /* Right-align content (the circle) within its fixed space */
+    align-items: center;
+  }
+
+  /* 22.5) ETA Times (inside .mobile-meta) */
+  .mobile-times {
+    flex: 0 0 auto;
+    /* Let content dictate width */
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    /* Right-align ETA times if multi-line */
+    row-gap: 4px;
+    /* Vertical spacing between ETA lines */
+  }
+
+  /* Specific: KMB ETA size & first ETA color */
+  .mobile-kmb .mobile-times .eta-time {
+    font-size: 0.9em;
+    /* Decrease ETA font size for KMB */
+  }
+
+  /* Specific: MTR/LR ETA size */
+  .mobile-mtr .mobile-times .eta-time,
+  .mobile-lr .mobile-times .eta-time {
+    font-size: 1.1em;
+    /* Standard ETA font for MTR/LR (as per previous versions) */
+  }
+
+  /* KMB: First ETA blue text (already exists, ensuring it applies) */
+  .mobile-kmb .mobile-times .eta-time.eta-first:not(.scheduled-eta) {
+    color: var(--primary-color);
+    font-weight: 700;
+  }
+
+
+  /* 22.6) Warning Button (inside .mobile-meta) */
+  .mobile-toggle-btn {
+    flex: 0 0 auto;
+    /* Let button dictate its width */
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: rgba(0, 0, 0, 0.08);
+    color: var(--on-surface);
+    border-radius: var(--radius-pill);
+    font-size: 1.1em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background var(--anim-dur), transform var(--anim-ease);
+    animation: popIn var(--anim-dur) var(--anim-ease) forwards;
+    z-index: 1;
+  }
+
+  .mobile-toggle-btn.warning {
+    background: var(--kmb-red);
+    color: #fff;
+  }
+
+  /* Expanded details panel (always below the main card content) */
+  .mobile-details {
+    margin-top: 8px;
+  }
 }
