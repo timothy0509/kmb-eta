@@ -107,7 +107,7 @@
       },
       tc: {
         inputLabel: '輕鐵站名',
-        inputPlaceholder: '例如：蝶翠苑',
+        inputPlaceholder: '例如：蝴蝶',
         searchButton: '查詢列車',
         noData: '沒有列車資料',
         tableHeaders: { // Desktop table headers for Light Rail
@@ -118,7 +118,7 @@
       },
       sc: {
         inputLabel: '轻铁站名',
-        inputPlaceholder: '例如：蝶翠苑',
+        inputPlaceholder: '例如：蝴蝶',
         searchButton: '查询列车',
         noData: '没有列车资料',
         tableHeaders: { // Desktop table headers for Light Rail
