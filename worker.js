@@ -1,18 +1,12 @@
-import { serveStatic } from "wrangler";
+import { render } from "./dist-ssr/entry-server.js";
 
 export default {
-  async fetch(request, env, ctx) {
-    try {
-      // Try to serve static assets from dist/
-      return await serveStatic(request, {
-        root: "./dist"
-      });
-    } catch (e) {
-      // Fallback to index.html for SPA routes
-      return await serveStatic(request, {
-        root: "./dist",
-        path: "index.html"
-      });
-    }
+  async fetch(request) {
+    const url = new URL(request.url);
+    const html = render(url.pathname);
+
+    return new Response(html, {
+      headers: { "Content-Type": "text/html; charset=utf-8" }
+    });
   }
 };

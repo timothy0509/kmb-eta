@@ -1,6 +1,3 @@
 name = "eta"
 main = "worker.js"
 compatibility_date = "2025-08-20"
-
-[site]
-bucket = "./dist"
