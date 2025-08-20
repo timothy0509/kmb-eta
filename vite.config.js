@@ -3,9 +3,11 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
-  base: "/eta/",
+  // ensure client build outputs to dist
   build: {
-    ssr: "src/entry-server.jsx", // SSR entry
-    outDir: "dist-ssr"
+    outDir: "dist",
+    rollupOptions: {
+      input: "index.html"
+    }
   }
 });
