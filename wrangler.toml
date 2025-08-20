@@ -1,0 +1,9 @@
+# wrangler.toml
+name = "eta"
+compatibility_date = "2025-08-20"
+
+# Tell wrangler to publish the static build directory
+assets = { directory = "./dist" }
+
+# Optional: add account_id if needed
+# account_id = "your-account-id"
