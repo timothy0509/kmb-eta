@@ -2,32 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Use Inter (ensure index.html includes the Google Fonts link) */
+/* Inter font — ensure you import via index.html */
 body {
   font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
     Roboto, "Helvetica Neue", Arial;
 }
 
-/* subtle search entrance */
-@keyframes searchEnter {
-  from {
-    opacity: 0;
-    transform: translateY(-6px) scale(0.997);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-.animate-search-enter {
-  animation: searchEnter 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-/* card entrance: fade + slide up */
+/* Entrance animations */
 @keyframes cardEnter {
   from {
     opacity: 0;
-    transform: translateY(6px) scale(0.997);
+    transform: translateY(8px) scale(0.998);
   }
   to {
     opacity: 1;
@@ -38,74 +23,76 @@ body {
   animation: cardEnter 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
-/* row update highlight: glow + subtle scale */
+/* Row change pulse */
 @keyframes rowChange {
   0% {
-    box-shadow: 0 0 0px rgba(59, 130, 246, 0.0);
+    box-shadow: 0 0 0 rgba(59, 130, 246, 0);
     transform: translateY(0) scale(1);
   }
   30% {
-    box-shadow: 0 0 8px rgba(59, 130, 246, 0.12);
+    box-shadow: 0 6px 18px rgba(59, 130, 246, 0.08);
     transform: translateY(-2px) scale(1.01);
   }
-  60% {
-    box-shadow: 0 0 6px rgba(59, 130, 246, 0.08);
-    transform: translateY(0) scale(1.0);
-  }
   100% {
-    box-shadow: 0 0 0px rgba(59, 130, 246, 0.0);
+    box-shadow: 0 0 0 rgba(59, 130, 246, 0);
     transform: translateY(0) scale(1);
   }
 }
 .row-change {
-  animation: rowChange 1.2s ease-in-out;
+  animation: rowChange 1100ms ease-in-out;
 }
 
-/* subtle glow pulse used previously (kept) */
-@keyframes subtleGlow {
+/* Updated token micro animation */
+@keyframes tokenUpdate {
   0% {
-    box-shadow: 0 0 0px rgba(59, 130, 246, 0.0);
+    transform: translateY(-6px) scale(0.98);
+    opacity: 0;
   }
-  50% {
-    box-shadow: 0 0 10px rgba(59, 130, 246, 0.12);
+  60% {
+    transform: translateY(2px) scale(1.02);
+    opacity: 1;
   }
   100% {
-    box-shadow: 0 0 0px rgba(59, 130, 246, 0.0);
+    transform: translateY(0) scale(1);
+    opacity: 1;
   }
 }
-.ring-2.animate-pulse {
-  animation: subtleGlow 1.6s ease-in-out;
+.updated-token {
+  animation: tokenUpdate 480ms ease both;
 }
 
-/* collapse animations handled using max-height and opacity in-line classes,
-   but provide a smooth cubic-bezier for nicer feel */
-.transition-all {
-  transition: all 260ms cubic-bezier(0.2, 0.9, 0.2, 1);
+/* skeleton pulse */
+@keyframes skeletonPulse {
+  0% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0.85;
+  }
+}
+.animate-pulse {
+  animation: skeletonPulse 1.2s infinite ease-in-out;
 }
 
-/* route badge hover micro-interaction (scale already applied via tailwind),
-   add smoother transition */
-span[class*="getRouteStyle"] {
-  transition: transform 150ms ease, box-shadow 140ms ease;
+/* subtle focus style */
+:focus {
+  outline-offset: 3px;
 }
 
-/* ETA token hover subtle */
+/* reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .animate-card-enter,
+  .row-change,
+  .updated-token,
+  .animate-pulse {
+    animation: none !important;
+  }
+}
+
+/* extra micro styles */
 .eta-token {
-  transition: transform 140ms ease, color 120ms ease;
-}
-
-/* accessibility: focus outlines */
-input:focus,
-select:focus,
-button:focus,
-a:focus {
-  outline: 3px solid rgba(59, 130, 246, 0.18);
-  outline-offset: 2px;
-}
-
-/* small responsive tweaks */
-@media (max-width: 640px) {
-  .grid-cols-12 {
-    /* allow grid to wrap; items will flow */
-  }
+  transition: transform 120ms ease, color 120ms ease;
 }

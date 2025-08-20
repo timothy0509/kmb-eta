@@ -1,62 +1,63 @@
-// src/api/kmbApi.js
-
 const BASE_URL = "https://data.etabus.gov.hk/v1/transport/kmb";
 
 /**
- * Fetch all stops
+ * fetchStops - returns array of stops (cached in-memory for session)
+ * getETAByStopName - returns array of { stop, eta: [...] } (already implemented previously)
  */
+
+let _stopsCache = null;
+
 export async function fetchStops() {
+  if (_stopsCache) return _stopsCache;
   const res = await fetch(`${BASE_URL}/stop`);
   const data = await res.json();
-  return data.data || [];
+  _stopsCache = data.data || [];
+  return _stopsCache;
 }
 
-/**
- * Search stops by partial name (EN, TC, SC)
- */
-export async function searchStops(query) {
-  const stops = await fetchStops();
-  const q = query.toLowerCase();
-  return stops.filter(
-    (s) =>
-      s.name_en.toLowerCase().includes(q) ||
-      s.name_tc.includes(query) ||
-      s.name_sc.includes(query)
-  );
+export async function fetchStopsRaw() {
+  return fetchStops();
 }
 
-/**
- * Fetch ETA for a stop
- */
-export async function fetchStopETA(stopId) {
-  const res = await fetch(`${BASE_URL}/stop-eta/${stopId}`);
-  const data = await res.json();
-  return data.data || [];
-}
-
-/**
- * Get ETA for stop by name (with optional route filter)
- */
+// This function expected by earlier components: getETAByStopName
 export async function getETAByStopName(stopName, routeFilters = []) {
-  const stops = await searchStops(stopName);
-  if (stops.length === 0) return [];
+  // simple approach: search stops by partial match in fetched stops,
+  // then call stop-eta API for each matching stop and return combined format.
+  // But previous code expected a single API that returns combined entries.
+  // To keep compatibility with prior code, we'll do this:
+  // - search stops via fetchStops()
+  // - for each matched stop, call /stop-eta/{stop}
+  // - then filter etas by routeFilters if provided
+  const stops = await fetchStops();
+  const q = (stopName || "").toLowerCase();
+  const matched = stops.filter((s) => {
+    const nameEn = (s.name_en || "").toLowerCase();
+    const nameTc = (s.name_tc || "").toLowerCase();
+    const nameSc = (s.name_sc || "").toLowerCase();
+    return (
+      (!q ||
+        nameEn.includes(q) ||
+        nameTc.includes(q) ||
+        nameSc.includes(q))
+    );
+  });
 
-  const results = [];
-  for (const stop of stops) {
-    const etaData = await fetchStopETA(stop.stop);
-
-    let filtered = etaData;
-    if (routeFilters.length > 0) {
-      filtered = etaData.filter((e) =>
-        routeFilters.includes(e.route.toUpperCase())
-      );
+  // limit number of stops to avoid too many requests
+  const limited = matched.slice(0, 10);
+  const result = [];
+  for (const s of limited) {
+    try {
+      const r = await fetch(`${BASE_URL}/stop-eta/${s.stop}`);
+      const d = await r.json();
+      let etas = d.data || [];
+      if (routeFilters && routeFilters.length > 0) {
+        const filters = new Set(routeFilters.map((r) => r.toUpperCase()));
+        etas = etas.filter((e) => filters.has((e.route || "").toUpperCase()));
+      }
+      result.push({ stop: s, eta: etas });
+    } catch (err) {
+      console.error("stop-eta error", err);
     }
-
-    results.push({
-      stop,
-      eta: filtered,
-    });
   }
-
-  return results;
+  return result;
 }
