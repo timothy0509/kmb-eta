@@ -3,11 +3,11 @@ import { parseStopName } from "../utils/stopParser";
 import { parseRoute, getRouteStyle } from "../utils/routeParser";
 
 /**
- * ETAList.jsx (enhanced)
- * - shows skeleton cards when results empty & loading is true (handled by App)
- * - crossfade token replacement when times change
- * - pin support UI hook (store in localStorage elsewhere if desired)
- * - obeys reducedMotion prop (passed from App settings)
+ * ETAList.jsx (updated)
+ * - uses useCountdown prop (global default from Settings)
+ * - consumes pinnedKeys and onTogglePin from App
+ * - rows include data-row-key attribute to allow scroll-to-row
+ * - removed header countdown toggle (moved to Settings)
  */
 
 export default function ETAList({
@@ -16,36 +16,25 @@ export default function ETAList({
   highlightMap = {},
   highlightDuration = 2000,
   reducedMotion = false,
-  onPinChange,
+  pinnedKeys = {},
+  onTogglePin = () => {},
+  useCountdown = false,
+  onRowClick = () => {},
 }) {
-  const [showCountdown, setShowCountdown] = useState(false);
   const [now, setNow] = useState(new Date());
   const [collapsed, setCollapsed] = useState({});
-  const [pinned, setPinned] = useState(() => {
-    try {
-      const raw = localStorage.getItem("kmb_pinned");
-      return raw ? JSON.parse(raw) : {};
-    } catch {
-      return {};
-    }
-  });
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem("kmb_pinned", JSON.stringify(pinned));
-    if (onPinChange) onPinChange(Object.keys(pinned));
-  }, [pinned, onPinChange]);
-
   const formatETAObject = (etaStr) => {
     if (!etaStr) return { text: "—", expired: true, raw: null };
     const etaDate = new Date(etaStr);
     const diff = etaDate - now;
     const expired = diff <= 0;
-    if (showCountdown) {
+    if (useCountdown) {
       if (expired) return { text: "Expired", expired: true, raw: etaStr };
       const mins = Math.floor(diff / 60000);
       const secs = Math.floor((diff % 60000) / 1000);
@@ -63,7 +52,6 @@ export default function ETAList({
     }
   };
 
-  // Build grouped view: card per merged stopName entry
   const grouped = useMemo(() => {
     return (results || []).map((entry) => {
       const rowsByKey = {};
@@ -111,7 +99,7 @@ export default function ETAList({
         rows,
       };
     });
-  }, [results, language, now, showCountdown]);
+  }, [results, language, now, useCountdown]);
 
   const isHighlighted = (rowKey) => {
     const ts = highlightMap[rowKey];
@@ -120,34 +108,11 @@ export default function ETAList({
   };
 
   if (!results || results.length === 0) {
-    return (
-      <div className="space-y-4">
-        {/* skeletons - show a few placeholders */}
-        {[1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow animate-pulse"
-          >
-            <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-3" />
-            <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-2/3 mb-2" />
-            <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded w-full mt-2" />
-          </div>
-        ))}
-      </div>
-    );
+    return <p className="text-gray-500 mt-6">No results found.</p>;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
-        <button
-          onClick={() => setShowCountdown((s) => !s)}
-          className="px-3 py-1 text-sm rounded bg-gray-200 dark:bg-gray-700 dark:text-white transition"
-        >
-          {showCountdown ? "Show Exact Time" : "Show Countdown"}
-        </button>
-      </div>
-
       {grouped.map((card, cardIndex) => {
         const stopKey = card.stopName || card.stopRepresentative.stop;
         const lastUpdated =
@@ -156,15 +121,12 @@ export default function ETAList({
             : null;
         const collapsedState = !!collapsed[stopKey];
 
-        // pinned rows appear at top inside card — build ordering
-        const pinnedRows = card.rows.filter((r) => pinned[`${card.stopName}|${r.key}`]);
-        const normalRows = card.rows.filter((r) => !pinned[`${card.stopName}|${r.key}`]);
-
         return (
           <div
             key={stopKey}
-            className="bg-white dark:bg-gray-800 shadow-md rounded-xl p-4 border border-gray-200 dark:border-gray-700 transform transition-all duration-300 ease-out animate-card-enter"
-            style={{ animationDelay: `${cardIndex * 40}ms` }}
+            className="bg-white dark:bg-gray-800 shadow-md rounded-xl p-4 border border-gray-200 dark:border-gray-700 transform transition-all duration-300 ease-out"
+            style={{ animationDelay: `${cardIndex * 30}ms` }}
+            id={`card-${encodeURIComponent(stopKey)}`}
           >
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
@@ -181,24 +143,17 @@ export default function ETAList({
                     : ""}
                 </div>
                 <button
-                  onClick={() =>
-                    setCollapsed((prev) => ({ ...prev, [stopKey]: !collapsedState }))
-                  }
-                  className="px-2 py-1 text-xs rounded bg-gray-100 dark:bg-gray-700 transition"
+                  onClick={() => setCollapsed((p) => ({ ...p, [stopKey]: !collapsedState }))}
+                  className="px-2 py-1 text-xs rounded bg-gray-100 dark:bg-gray-700"
                 >
                   {collapsedState ? "Expand" : "Collapse"}
                 </button>
               </div>
             </div>
 
-            <div
-              className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                collapsedState ? "max-h-0 opacity-40" : "max-h-[2000px] opacity-100"
-              }`}
-            >
+            <div className={`overflow-hidden transition-all duration-300 ease-in-out ${collapsedState ? "max-h-0 opacity-40" : "max-h-[2000px] opacity-100"}`}>
               <ul className="mt-3 space-y-2">
-                {/* pinned rows first */}
-                {[...pinnedRows, ...normalRows]
+                {card.rows
                   .sort((a, b) => {
                     const pa = a.parsedRoute;
                     const pb = b.parsedRoute;
@@ -215,49 +170,42 @@ export default function ETAList({
                     }
                     return 0;
                   })
+                  .sort((a, b) => {
+                    if ((!a.etas || a.etas.length === 0) && (b.etas && b.etas.length > 0)) return 1;
+                    if ((a.etas && a.etas.length > 0) && (!b.etas || b.etas.length === 0)) return -1;
+                    return 0;
+                  })
                   .map((row, rowIndex) => {
                     const rowKey = `${card.stopName}|${row.route}|${row.dest}|${row.stopCode || ""}`;
                     const highlight = isHighlighted(rowKey);
+                    const pinned = !!pinnedKeys[rowKey];
 
                     return (
                       <li
                         key={row.key}
-                        className={`grid grid-cols-12 items-center bg-gray-50 dark:bg-gray-700 px-3 py-2 rounded-lg transition-colors ${
-                          highlight ? "row-change" : ""
-                        }`}
-                        style={{ animationDelay: `${rowIndex * 24}ms` }}
+                        data-row-key={rowKey}
+                        className={`grid grid-cols-12 items-center bg-gray-50 dark:bg-gray-700 px-3 py-2 rounded-lg transition-colors ${highlight ? "row-change" : ""}`}
+                        style={{ animationDelay: `${rowIndex * 18}ms` }}
+                        onClick={() => onRowClick(rowKey)}
                       >
                         {/* route badge */}
                         <div className="col-span-2 flex justify-start">
-                          <span
-                            className={`px-2 py-1 rounded text-sm font-bold inline-flex items-center justify-center transform transition-transform duration-150 hover:scale-105 ${getRouteStyle(
-                              row.parsedRoute
-                            )}`}
-                          >
+                          <span className={`px-2 py-1 rounded text-sm font-bold inline-flex items-center justify-center transform transition-transform duration-150 hover:scale-105 ${getRouteStyle(row.parsedRoute)}`}>
                             {row.route}
                           </span>
                         </div>
 
-                        {/* destination + platform/stop code */}
+                        {/* destination + platform */}
                         <div className="col-span-6 flex flex-col">
                           <div className="flex items-center gap-3">
                             <span className="font-medium text-gray-800 dark:text-gray-100">
                               {row.dest}
                             </span>
                             <button
-                              title={pinned[`${card.stopName}|${row.key}`] ? "Unpin" : "Pin"}
-                              onClick={() =>
-                                setPinned((prev) => {
-                                  const k = `${card.stopName}|${row.key}`;
-                                  const next = { ...prev };
-                                  if (next[k]) delete next[k];
-                                  else next[k] = true;
-                                  return next;
-                                })
-                              }
+                              onClick={(e) => { e.stopPropagation(); onTogglePin(rowKey); }}
                               className="text-xs px-2 py-0.5 rounded bg-gray-200 dark:bg-gray-600"
                             >
-                              {pinned[`${card.stopName}|${row.key}`] ? "📌" : "pin"}
+                              {pinned ? "📌" : "pin"}
                             </button>
                           </div>
                           <span className="text-xs text-gray-500 dark:text-gray-400">
@@ -267,19 +215,16 @@ export default function ETAList({
                           </span>
                         </div>
 
-                        {/* ETAs aligned right with crossfade on change */}
+                        {/* ETAs */}
                         <div className="col-span-4 flex justify-end space-x-3">
                           {row.etas && row.etas.length > 0 ? (
                             row.etas.map((etaObj, idx) => {
-                              // crossfade: use highlightMap to know if changed recently
                               const changed = highlightMap[rowKey];
                               const isChanged = changed && Date.now() - changed < 1500;
                               return (
                                 <span
                                   key={idx}
-                                  className={`whitespace-nowrap inline-block px-2 py-0.5 rounded text-sm transition transform hover:scale-105 ${
-                                    etaObj.expired ? "text-gray-400 line-through" : "text-gray-700 dark:text-gray-200"
-                                  } ${isChanged ? "updated-token" : ""}`}
+                                  className={`whitespace-nowrap inline-block px-2 py-0.5 rounded text-sm transition transform hover:scale-105 ${etaObj.expired ? "text-gray-400 line-through" : "text-gray-700 dark:text-gray-200"} ${isChanged ? "updated-token" : ""}`}
                                   title={etaObj.raw || ""}
                                 >
                                   {etaObj.text}
