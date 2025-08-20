@@ -2,9 +2,110 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Optional: custom global styles */
+/* Use Inter (ensure index.html includes the Google Fonts link) */
 body {
-  @apply bg-gray-100 text-gray-900;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    Roboto, Helvetica, Arial, sans-serif;
+  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial;
+}
+
+/* subtle search entrance */
+@keyframes searchEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.997);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.animate-search-enter {
+  animation: searchEnter 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* card entrance: fade + slide up */
+@keyframes cardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.997);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.animate-card-enter {
+  animation: cardEnter 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* row update highlight: glow + subtle scale */
+@keyframes rowChange {
+  0% {
+    box-shadow: 0 0 0px rgba(59, 130, 246, 0.0);
+    transform: translateY(0) scale(1);
+  }
+  30% {
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.12);
+    transform: translateY(-2px) scale(1.01);
+  }
+  60% {
+    box-shadow: 0 0 6px rgba(59, 130, 246, 0.08);
+    transform: translateY(0) scale(1.0);
+  }
+  100% {
+    box-shadow: 0 0 0px rgba(59, 130, 246, 0.0);
+    transform: translateY(0) scale(1);
+  }
+}
+.row-change {
+  animation: rowChange 1.2s ease-in-out;
+}
+
+/* subtle glow pulse used previously (kept) */
+@keyframes subtleGlow {
+  0% {
+    box-shadow: 0 0 0px rgba(59, 130, 246, 0.0);
+  }
+  50% {
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.12);
+  }
+  100% {
+    box-shadow: 0 0 0px rgba(59, 130, 246, 0.0);
+  }
+}
+.ring-2.animate-pulse {
+  animation: subtleGlow 1.6s ease-in-out;
+}
+
+/* collapse animations handled using max-height and opacity in-line classes,
+   but provide a smooth cubic-bezier for nicer feel */
+.transition-all {
+  transition: all 260ms cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+/* route badge hover micro-interaction (scale already applied via tailwind),
+   add smoother transition */
+span[class*="getRouteStyle"] {
+  transition: transform 150ms ease, box-shadow 140ms ease;
+}
+
+/* ETA token hover subtle */
+.eta-token {
+  transition: transform 140ms ease, color 120ms ease;
+}
+
+/* accessibility: focus outlines */
+input:focus,
+select:focus,
+button:focus,
+a:focus {
+  outline: 3px solid rgba(59, 130, 246, 0.18);
+  outline-offset: 2px;
+}
+
+/* small responsive tweaks */
+@media (max-width: 640px) {
+  .grid-cols-12 {
+    /* allow grid to wrap; items will flow */
+  }
 }

@@ -1,47 +1,248 @@
-export default function ETAList({ results }) {
-  if (results.length === 0) {
+import React, { useEffect, useMemo, useState } from "react";
+import { parseStopName } from "../utils/stopParser";
+import { parseRoute, getRouteStyle } from "../utils/routeParser";
+
+/**
+ * ETAList.jsx
+ * - cards animate in on mount / new search (fade+slide)
+ * - rows have staggered reveal; updated rows pulse/glow briefly
+ * - collapse animates height/opacity
+ * - route badge scales slightly on hover
+ */
+
+export default function ETAList({
+  results = [],
+  language = "en",
+  highlightMap = {},
+  highlightDuration = 2000,
+}) {
+  const [showCountdown, setShowCountdown] = useState(false);
+  const [now, setNow] = useState(new Date());
+  const [collapsed, setCollapsed] = useState({});
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const formatETAObject = (etaStr) => {
+    if (!etaStr) return { text: "—", expired: true, raw: null };
+    const etaDate = new Date(etaStr);
+    const diff = etaDate - now;
+    const expired = diff <= 0;
+    if (showCountdown) {
+      if (expired) return { text: "Expired", expired: true, raw: etaStr };
+      const mins = Math.floor(diff / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      return { text: `${mins}m ${secs}s`, expired: false, raw: etaStr };
+    } else {
+      return {
+        text: etaDate.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }),
+        expired,
+        raw: etaStr,
+      };
+    }
+  };
+
+  const grouped = useMemo(() => {
+    return (results || []).map((entry) => {
+      const rowsByKey = {};
+      (entry.eta || []).forEach((e) => {
+        const dest = e[`dest_${language}`] || e.dest_en || "";
+        const parsed = parseStopName(entry.nameLangValue || "");
+        const stopCode = parsed.stopCode || "";
+        const key = `${e.route}|${dest}|${stopCode}`;
+        if (!rowsByKey[key]) {
+          rowsByKey[key] = {
+            key,
+            route: e.route,
+            parsedRoute: parseRoute(e.route),
+            dest,
+            platform: parsed.platform,
+            stopCode: parsed.stopCode,
+            rawTimes: [],
+            remarks: [],
+            dataTimestamps: [],
+          };
+        }
+        if (e.eta) {
+          rowsByKey[key].rawTimes.push(e.eta);
+          rowsByKey[key].dataTimestamps.push(new Date(e.data_timestamp).getTime());
+        } else {
+          const remark = e[`rmk_${language}`] || e.rmk_en || "";
+          if (remark) rowsByKey[key].remarks.push(remark);
+        }
+      });
+
+      const rows = Object.values(rowsByKey).map((r) => {
+        const uniqueTimes = Array.from(new Set(r.rawTimes)).sort();
+        return {
+          ...r,
+          etas: uniqueTimes.map((t) => formatETAObject(t)),
+          lastTimestamp: r.dataTimestamps.length ? Math.max(...r.dataTimestamps) : null,
+        };
+      });
+
+      return {
+        stopRepresentative: entry.stopRepresentative,
+        stopName: entry.stopName,
+        nameLangValue: entry.nameLangValue,
+        parsedStop: entry.parsedStop,
+        rows,
+      };
+    });
+  }, [results, language, now, showCountdown]);
+
+  const isHighlighted = (rowKey) => {
+    const ts = highlightMap[rowKey];
+    if (!ts) return false;
+    return Date.now() - ts < highlightDuration;
+  };
+
+  if (!results || results.length === 0) {
     return <p className="text-gray-500 mt-6">No results found.</p>;
   }
 
   return (
-    <div className="mt-6 space-y-6">
-      {results.map(({ stop, eta }) => (
-        <div
-          key={stop.stop}
-          className="bg-white shadow-md rounded-xl p-4 border border-gray-200"
+    <div className="space-y-6">
+      <div className="flex justify-end">
+        <button
+          onClick={() => setShowCountdown((s) => !s)}
+          className="px-3 py-1 text-sm rounded bg-gray-200 dark:bg-gray-700 dark:text-white transition"
         >
-          <h2 className="text-lg font-semibold text-gray-800">
-            {stop.name_en} ({stop.name_tc})
-          </h2>
-          <p className="text-sm text-gray-500">
-            Lat: {stop.lat}, Lng: {stop.long}
-          </p>
-          <ul className="mt-3 space-y-2">
-            {eta.length > 0 ? (
-              eta.map((e, idx) => (
-                <li
-                  key={idx}
-                  className="flex justify-between bg-gray-50 px-3 py-2 rounded-lg"
+          {showCountdown ? "Show Exact Time" : "Show Countdown"}
+        </button>
+      </div>
+
+      {grouped.map((card, cardIndex) => {
+        const stopKey = card.stopName || card.stopRepresentative.stop;
+        const lastUpdated =
+          card.rows && card.rows.length > 0
+            ? new Date(Math.max(...card.rows.map((r) => r.lastTimestamp || 0)))
+            : null;
+        const collapsedState = !!collapsed[stopKey];
+
+        return (
+          <div
+            key={stopKey}
+            className="bg-white dark:bg-gray-800 shadow-md rounded-xl p-4 border border-gray-200 dark:border-gray-700 transform transition-all duration-300 ease-out animate-card-enter"
+            style={{ animationDelay: `${cardIndex * 40}ms` }}
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+                {card.parsedStop.name}
+              </h2>
+              <div className="flex items-center gap-3">
+                <div className="text-xs text-gray-500 dark:text-gray-400 mr-2">
+                  {lastUpdated
+                    ? `Updated ${lastUpdated.toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                      })}`
+                    : ""}
+                </div>
+                <button
+                  onClick={() => setCollapsed((prev) => ({ ...prev, [stopKey]: !collapsedState }))}
+                  className="px-2 py-1 text-xs rounded bg-gray-100 dark:bg-gray-700 transition"
                 >
-                  <span className="font-medium text-blue-600">
-                    Route {e.route} → {e.dest_en}
-                  </span>
-                  <span className="text-gray-700">
-                    {e.eta
-                      ? new Date(e.eta).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "No ETA"}
-                  </span>
-                </li>
-              ))
-            ) : (
-              <li className="text-gray-500">No ETA available</li>
-            )}
-          </ul>
-        </div>
-      ))}
+                  {collapsedState ? "Expand" : "Collapse"}
+                </button>
+              </div>
+            </div>
+
+            <div
+              className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                collapsedState ? "max-h-0 opacity-40" : "max-h-[2000px] opacity-100"
+              }`}
+            >
+              <ul className="mt-3 space-y-2">
+                {card.rows
+                  .sort((a, b) => {
+                    const pa = a.parsedRoute;
+                    const pb = b.parsedRoute;
+                    if (pa.prefix !== pb.prefix) {
+                      if (!pa.prefix) return -1;
+                      if (!pb.prefix) return 1;
+                      return pa.prefix.localeCompare(pb.prefix);
+                    }
+                    if (pa.number !== pb.number) return pa.number - pb.number;
+                    if (pa.suffix !== pb.suffix) {
+                      if (!pa.suffix) return -1;
+                      if (!pb.suffix) return 1;
+                      return pa.suffix.localeCompare(pb.suffix);
+                    }
+                    return 0;
+                  })
+                  .sort((a, b) => {
+                    if ((!a.etas || a.etas.length === 0) && (b.etas && b.etas.length > 0)) return 1;
+                    if ((a.etas && a.etas.length > 0) && (!b.etas || b.etas.length === 0)) return -1;
+                    return 0;
+                  })
+                  .map((row, rowIndex) => {
+                    const rowKey = `${card.stopName}|${row.route}|${row.dest}|${row.stopCode || ""}`;
+                    const highlight = isHighlighted(rowKey);
+
+                    return (
+                      <li
+                        key={row.key}
+                        className={`grid grid-cols-12 items-center bg-gray-50 dark:bg-gray-700 px-3 py-2 rounded-lg transition-colors ${
+                          highlight ? "row-change" : ""
+                        }`}
+                        style={{ animationDelay: `${rowIndex * 24}ms` }}
+                      >
+                        <div className="col-span-2 flex justify-start">
+                          <span
+                            className={`px-2 py-1 rounded text-sm font-bold inline-flex items-center justify-center transform transition-transform duration-150 hover:scale-105 ${getRouteStyle(
+                              row.parsedRoute
+                            )}`}
+                          >
+                            {row.route}
+                          </span>
+                        </div>
+
+                        <div className="col-span-6 flex flex-col">
+                          <span className="font-medium text-gray-800 dark:text-gray-100">
+                            {row.dest}
+                          </span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {row.platform ? `Platform: ${row.platform}` : ""}
+                            {row.platform && row.stopCode ? " · " : ""}
+                            {row.stopCode ? `Stop Code: ${row.stopCode}` : ""}
+                          </span>
+                        </div>
+
+                        <div className="col-span-4 flex justify-end space-x-3">
+                          {row.etas && row.etas.length > 0 ? (
+                            row.etas.map((etaObj, idx) => (
+                              <span
+                                key={idx}
+                                className={`whitespace-nowrap inline-block px-2 py-0.5 rounded text-sm transition transform hover:scale-105 ${
+                                  etaObj.expired ? "text-gray-400 line-through" : "text-gray-700 dark:text-gray-200"
+                                }`}
+                                title={etaObj.raw || ""}
+                              >
+                                {etaObj.text}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-red-500 dark:text-red-400 text-sm">
+                              {row.remarks && row.remarks.length > 0 ? row.remarks.join(", ") : "No ETA"}
+                            </span>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+              </ul>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
